@@ -1,0 +1,197 @@
+#!/bin/bash
+# git-annex-remote-rclone - wrapper to enable use of rclone-supported cloud providers as git-annex special remotes.
+#
+# Install in PATH as git-annex-remote-rclone
+#
+# Copyright (C) 2016  Daniel Dent
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of version 3 of the GNU
+# General Public License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# Based on work originally copyright 2013 Joey Hess which was licenced under the GNU GPL version 3 or higher.
+#
+
+set -e
+
+# This program speaks a line-based protocol on stdin and stdout.
+# When running any commands, their stdout should be redirected to stderr
+# (or /dev/null) to avoid messing up the protocol.
+runcmd () {
+	"$@" >&2
+}
+
+# Gets a value from the remote's configuration, and stores it in RET
+getconfig () {
+	ask GETCONFIG "$1"
+}
+
+# Stores a value in the remote's configuration.
+setconfig () {
+	echo SETCONFIG "$1" "$2"
+}
+
+# Note: some rclone supported destinations use case-insensitive naming. DIRHASH returns a case-sensitive value.
+# Some case-insensitive destinations will fail when you manipulate a folder using a case other than the case first
+# used to create the folder on that destination.
+#
+# Two possible solutions:
+#
+# (1) Encode case into a lower-case string
+#
+# (2) Ignore case & convert all strings to lower case
+#
+# Option (2) has been chosen. On destinations with lots of files it may be less efficient (as more files will end
+# up in each folder), however it is simpler for others to understand and also appears sufficient.
+#
+# Sets LOC to the location to use to store a key.
+calclocation () {
+	ask DIRHASH "$1"
+	lret=$(echo $RET|tr A-Z a-z)
+	LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$lret"
+}
+
+# Asks for some value, and stores it in RET
+ask () {
+	echo "$1" "$2"
+	read resp
+	if echo $resp|grep '^VALUE '>/dev/null; then
+	    RET=$(echo "$resp" | cut -f2- -d' ')
+    fi
+}
+
+
+# This has to come first, to get the protocol started.
+echo VERSION 1
+
+while read line; do
+	set -- $line
+	case "$1" in
+		INITREMOTE)
+			# Do anything necessary to create resources
+			# used by the remote. Try to be idempotent.
+			# 
+			# Use GETCONFIG to get any needed configuration
+			# settings, and SETCONFIG to set any persistent
+			# configuration settings.
+			# 
+			# (Note that this is not run every time, only when
+			# git annex initremote or git annex enableremote is
+			# run.)
+
+			getconfig prefix
+			REMOTE_PREFIX=$RET
+			if [ -z "$REMOTE_PREFIX" ]; then
+                REMOTE_PREFIX="git-annex"
+			fi
+			if [ "$REMOTE_PREFIX" == "/" ]; then
+                echo INITREMOTE-FAILURE "storing objects directly in the root (/) is not supported"
+			fi
+			setconfig prefix $REMOTE_PREFIX
+
+			getconfig target
+			REMOTE_TARGET=$RET
+			setconfig target $REMOTE_TARGET
+
+			if [ -z "$REMOTE_TARGET" ]; then
+                echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
+			fi
+
+            if runcmd rclone mkdir $REMOTE_TARGET:$REMOTE_PREFIX; then
+                echo INITREMOTE-SUCCESS
+            else
+                echo INITREMOTE-FAILURE "Failed to create directory on remote. Ensure that 'rclone config' has been run."
+            fi
+		;;
+		PREPARE)
+			# Use GETCONFIG to get configuration settings,
+			# and do anything needed to get ready for using the
+			# special remote here.
+
+			getconfig prefix
+			REMOTE_PREFIX="$RET"
+			getconfig target
+			REMOTE_TARGET="$RET"
+
+            echo PREPARE-SUCCESS
+		;;
+		TRANSFER)
+			key="$3"
+			file="$4"
+			case "$2" in
+				STORE)
+					# Store the file to a location
+					# based on the key.
+					# XXX when at all possible, send PROGRESS
+					calclocation "$key"
+					if runcmd rclone copy "$file" "$LOC"; then
+						echo TRANSFER-SUCCESS STORE "$key"
+					else
+						echo TRANSFER-FAILURE STORE "$key"
+					fi
+				;;
+				RETRIEVE)
+					# Retrieve from a location based on
+					# the key, outputting to the file.
+					# XXX when easy to do, send PROGRESS
+					calclocation "$key"
+					if GA_RC_TEMP_DIR=$(mktemp -d) &&
+					    runcmd rclone copy "$LOC$key" $GA_RC_TEMP_DIR &&
+					    mv $GA_RC_TEMP_DIR/$key $file &&
+					    rmdir $GA_RC_TEMP_DIR; then
+						echo TRANSFER-SUCCESS RETRIEVE "$key"
+					else
+						echo TRANSFER-FAILURE RETRIEVE "$key"
+					fi
+				;;
+			esac
+		;;
+		CHECKPRESENT)
+			key="$2"
+			calclocation "$key"
+
+			if check_result=$(rclone size "$LOC$key") &&
+			    echo $check_result|grep 'Total objects: 1' >&2 &&
+			    ! echo $check_result|grep 'Total size: 0' >&2; then
+				echo CHECKPRESENT-SUCCESS "$key"
+			else
+				if echo $check_result|grep 'Total objects: 0' >&2; then
+					echo CHECKPRESENT-FAILURE "$key"
+				else
+					# When the directory does not exist,
+					# the remote is not available.
+					# (A network remote would similarly
+					# fail with CHECKPRESENT-UNKNOWN
+					# if it couldn't be contacted).
+					echo CHECKPRESENT-UNKNOWN "$key" "this remote is not currently available"
+				fi
+			fi
+		;;
+		REMOVE)
+			key="$2"
+			calclocation "$key"
+			# Note that it's not a failure to remove a
+			# key that is not present.
+			if remove_result=$(rclone purge --retries 1 "$LOC$key" 2>&1); then
+                echo REMOVE-SUCCESS "$key"
+            else
+                if echo $remove_result | grep " Failed to purge: Couldn't find directory: " >&2; then
+				    echo REMOVE-SUCCESS "$key"
+                else
+                    echo REMOVE-FAILURE "$key"
+				fi
+			fi
+		;;
+		*)
+			# The requests listed above are all the ones
+			# that are required to be supported, so it's fine
+			# to say that any other request is unsupported.
+			echo UNSUPPORTED-REQUEST
+		;;
+	esac	
+done
+
+
+# XXX anything that needs to be done at shutdown can be done here
