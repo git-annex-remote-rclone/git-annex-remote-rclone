@@ -29,12 +29,14 @@ Cloud storage providers supported by rclone currently include:
       * Stores your files in an rclone remote configured with the name `acd`
       * Stores your files in a folder/prefix called `git-annex`:
 
-    git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=1GiB encryption=shared mac=HMACSHA512
+    git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=50MiB encryption=shared mac=HMACSHA512
 
-Choose your chunk size based on your needs. Smaller chunk sizes leak less information about the size of the files
-in your repository. Larger chunks require less round trips to and from your cloud provider and may be faster.
-File size limitations may also inform your choice. By using a chunk size below the maximum file size supported by
+Choose your chunk size based on your needs. By using a chunk size below the maximum file size supported by
 your cloud storage provider for uploads and downloads, you won't need to worry about running into issues with file size.
+Smaller chunk sizes: leak less information about the size of file size of files in your repository, require less ram,
+and require less data to be re-transmitted when network connectivity is interrupted. Larger chunks require less round
+trips to and from your cloud provider and may be faster. Additional discussion about chunk size can be found
+[here](https://git-annex.branchable.com/chunking/) and [here](https://github.com/DanielDent/git-annex-remote-rclone/issues/1)
 
 ## Implementation Note
 
