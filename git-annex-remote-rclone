@@ -154,7 +154,7 @@ while read line; do
 
 			if check_result=$(rclone size "$LOC$key") &&
 			    echo $check_result|grep 'Total objects: 1' >&2 &&
-			    ! echo $check_result|grep 'Total size: 0' >&2; then
+			    ! echo $check_result|grep 'Total size: 0 (0 bytes)' >&2; then
 				echo CHECKPRESENT-SUCCESS "$key"
 			else
 				if echo $check_result|grep 'Total objects: 0' >&2; then
