@@ -33,24 +33,44 @@ setconfig () {
 	echo SETCONFIG "$1" "$2"
 }
 
-# Note: some rclone supported destinations use case-insensitive naming. DIRHASH returns a case-sensitive value.
-# Some case-insensitive destinations will fail when you manipulate a folder using a case other than the case first
-# used to create the folder on that destination.
-#
-# Two possible solutions:
-#
-# (1) Encode case into a lower-case string
-#
-# (2) Ignore case & convert all strings to lower case
-#
-# Option (2) has been chosen. On destinations with lots of files it may be less efficient (as more files will end
-# up in each folder), however it is simpler for others to understand and also appears sufficient.
-#
+validate_layout() {
+	if [ -z "$RCLONE_LAYOUT" ]; then
+		RCLONE_LAYOUT="lower"
+	fi
+	case "$RCLONE_LAYOUT" in
+		lower|directory|nodir|mixed|frankencase)
+			;;
+		*)
+			echo "INITREMOTE-FAILURE rclone_layout setting not recognized"
+			exit 1
+			;;
+	esac		
+}
+
 # Sets LOC to the location to use to store a key.
 calclocation () {
-	ask DIRHASH "$1"
-	lret=$(echo $RET|tr A-Z a-z)
-	LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$lret"
+	case "$RCLONE_LAYOUT" in
+		lower)
+			ask DIRHASH-LOWER "$1"
+			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$RET"
+			;;
+		directory)
+			ask DIRHASH-LOWER "$1"
+			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$RET$1/"
+			;;
+		nodir)
+			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/"
+			;;	
+		mixed)
+			ask DIRHASH "$1"
+			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$RET"
+			;;
+		frankencase)
+			ask DIRHASH "$1"
+			lret=$(echo $RET|tr A-Z a-z)
+			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$lret"
+			;;
+	esac
 }
 
 # Asks for some value, and stores it in RET
@@ -59,7 +79,7 @@ ask () {
 	read resp
 	if echo $resp|grep '^VALUE '>/dev/null; then
 	    RET=$(echo "$resp" | cut -f2- -d' ')
-    fi
+	fi
 }
 
 
@@ -84,19 +104,24 @@ while read line; do
 			getconfig prefix
 			REMOTE_PREFIX=$RET
 			if [ -z "$REMOTE_PREFIX" ]; then
-                REMOTE_PREFIX="git-annex"
+                		REMOTE_PREFIX="git-annex"
 			fi
 			if [ "$REMOTE_PREFIX" == "/" ]; then
-                echo INITREMOTE-FAILURE "storing objects directly in the root (/) is not supported"
+		                echo INITREMOTE-FAILURE "storing objects directly in the root (/) is not supported"
 			fi
 			setconfig prefix $REMOTE_PREFIX
 
 			getconfig target
 			REMOTE_TARGET=$RET
 			setconfig target $REMOTE_TARGET
+			
+			getconfig rclone_layout
+			RCLONE_LAYOUT=$RET
+			validate_layout
+			setconfig rclone_layout $RCLONE_LAYOUT
 
 			if [ -z "$REMOTE_TARGET" ]; then
-                echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
+		                echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
 			fi
 
             if runcmd rclone mkdir $REMOTE_TARGET:$REMOTE_PREFIX; then
@@ -112,8 +137,13 @@ while read line; do
 
 			getconfig prefix
 			REMOTE_PREFIX="$RET"
+			
 			getconfig target
 			REMOTE_TARGET="$RET"
+			
+			getconfig rclone_layout
+			RCLONE_LAYOUT="$RET"
+			validate_layout
 
             echo PREPARE-SUCCESS
 		;;
