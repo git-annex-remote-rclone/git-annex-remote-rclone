@@ -182,12 +182,15 @@ while read line; do
 			key="$2"
 			calclocation "$key"
 
-			if check_result=$(rclone size "$LOC$key") &&
+			if check_result=$(rclone size "$LOC$key" 2>&1) &&
 			    echo $check_result|grep 'Total objects: 1 Total size' >&2 &&
 			    ! echo $check_result|grep 'Total size: 0 (0 bytes)' >&2; then
 				echo CHECKPRESENT-SUCCESS "$key"
 			else
-				if echo $check_result|grep 'Total objects: 0' >&2; then
+				# rclone 1.29 used 'Total objects: 0'
+				# rclone 1.30 uses 'directory not found'
+				if echo $check_result|grep 'Total objects: 0' >&2 || 
+				   echo $check_result|grep ' directory not found' >&2; then 
 					echo CHECKPRESENT-FAILURE "$key"
 				else
 					# When the directory does not exist,
@@ -195,7 +198,7 @@ while read line; do
 					# (A network remote would similarly
 					# fail with CHECKPRESENT-UNKNOWN
 					# if it couldn't be contacted).
-					echo CHECKPRESENT-UNKNOWN "$key" "this remote is not currently available"
+					echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
 				fi
 			fi
 		;;
@@ -205,12 +208,16 @@ while read line; do
 			# Note that it's not a failure to remove a
 			# key that is not present.
 			if remove_result=$(rclone purge --retries 1 "$LOC$key" 2>&1); then
-                echo REMOVE-SUCCESS "$key"
-            else
-                if echo $remove_result | grep " Failed to purge: Couldn't find directory: " >&2; then
-				    echo REMOVE-SUCCESS "$key"
-                else
-                    echo REMOVE-FAILURE "$key"
+		                echo REMOVE-SUCCESS "$key"
+	                else
+	    		   	# rclone 1.29 used Failed to purge: Couldn't find directory:
+				# rclone 1.30 uses no such file or directory
+		                if echo $remove_result | grep " Failed to purge: Couldn't find directory: " >&2 ||
+				   echo $remove_result | grep ' no such file or directory' >&2
+				then   
+					echo REMOVE-SUCCESS "$key"
+		                else
+                		        echo REMOVE-FAILURE "$key"
 				fi
 			fi
 		;;
