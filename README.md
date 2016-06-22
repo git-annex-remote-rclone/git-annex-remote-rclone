@@ -20,6 +20,14 @@ Cloud storage providers supported by rclone currently include:
    2. [Install rclone](http://rclone.org/install/) into your $PATH, e.g. `/usr/local/bin`
    3. Copy `git-annex-remote-rclone` into your $PATH
 
+## Requirements
+
+git-annex-remote-rclone has been tested to work with rclone 1.29 and
+rclone 1.30. Because rclone sometimes changes its output,
+updates to this software may be required for compatibility. Consider
+using 'git-annex testremote' to verify compatibility if you are not
+sure if the version of rclone you are using will be compatible.
+
 ## Usage
 
    1. Configure an rclone remote: `rclone config`
