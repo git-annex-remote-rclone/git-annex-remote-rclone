@@ -1,5 +1,7 @@
 # git-annex rclone special remote
 
+[![build status](https://gitlab.com/DanielDent/git-annex-remote-rclone/badges/master/build.svg)](https://gitlab.com/DanielDent/git-annex-remote-rclone/commits/master)
+
 This wrapper around [rclone](http://rclone.org/) makes any destination supported by rclone usable with git-annex.
 
 Cloud storage providers supported by rclone currently include:
