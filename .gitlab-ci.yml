@@ -10,6 +10,7 @@ test:
     - unzip rclone.zip
     - mv rclone-*-linux-amd64/rclone /usr/local/bin
     - echo -e '[local]\ntype = local\nnounc =' > ~/.rclone.conf
+    - git-annex version
     - mkdir testrepo
     - cd testrepo
     - git init .
