@@ -26,13 +26,15 @@ Cloud storage providers supported by rclone currently include:
 
 git-annex-remote-rclone has been tested to work with rclone 1.29 and
 rclone 1.30. Because rclone sometimes changes its output,
-updates to this software may be required for compatibility. Consider
-using 'git-annex testremote' to verify compatibility if you are not
-sure if the version of rclone you are using will be compatible.
+updates to this software may be required for compatibility.
+
+A periodic continuous integration process downloads the latest stable releases
+of `rclone` and `git-annex` and runs `git-annex testremote` to verify compatibility.
+The build badge above is linked to this CI process.
 
 ## Usage
 
-   1. Configure an rclone remote: `rclone config`
+   1. Configure an rclone remote: `rclone config`. Password-protected `rclone` configurations are not supported at this time (pull requests adding this feature are welcome).
    2. Create a git-annex repository ([walkthrough](https://git-annex.branchable.com/walkthrough/))
    3. Choose a repository layout. If you are having difficulty choosing, the `lower` layout is recommended. Supported layouts:
       * `lower` - A two-level lower case directory hierarchy is used (using git-annex's DIRHASH-LOWER MD5-based format). This choice requires git-annex 6.20160511 or later.
@@ -55,6 +57,8 @@ sure if the version of rclone you are using will be compatible.
       * Stores your files in a folder/prefix called `git-annex`:
 
     git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=50MiB encryption=shared mac=HMACSHA512 rclone_layout=lower
+
+The initremote command calls out to GPG and can hang if a machine has insufficient entropy. To debug issues, use the `--debug` flag, i.e. `git-annex initremote --debug`.
 
 ## Choosing a Chunk Size
 
