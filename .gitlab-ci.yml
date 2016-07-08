@@ -4,8 +4,7 @@ image: danieldent/debian-base
 test:
   script:
     - mv git-annex-remote-rclone /usr/local/bin
-    - curl 'https://downloads.kitenet.net/git-annex/linux/current/git-annex-standalone-amd64.tar.gz'|tar -xz
-    - mv git-annex.linux/* /usr/local/bin
+    - curl 'https://downloads.kitenet.net/git-annex/linux/current/git-annex-standalone-amd64.tar.gz'|tar -xz -C /usr/local/bin --strip-components 1
     - curl 'http://downloads.rclone.org/rclone-current-linux-amd64.zip' > rclone.zip
     - unzip rclone.zip
     - mv rclone-*-linux-amd64/rclone /usr/local/bin
