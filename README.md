@@ -24,13 +24,15 @@ Cloud storage providers supported by rclone currently include:
 
 ## Requirements
 
-git-annex-remote-rclone has been tested to work with rclone 1.29 and
-rclone 1.30. Because rclone sometimes changes its output,
-updates to this software may be required for compatibility.
+git-annex-remote-rclone has been tested with rclone versions 1.29 through 1.32. Because rclone sometimes changes its
+output, updates to this software may be required for compatibility.
 
 A periodic continuous integration process downloads the latest stable releases
 of `rclone` and `git-annex` and runs `git-annex testremote` to verify compatibility.
 The build badge above is linked to this CI process.
+
+Rclone 1.31 implemented performance improvements when copying a single file. As this remote continually invokes rclone
+to copy a single file, use of rclone 1.31 or later is recommended.
 
 ## Usage
 
