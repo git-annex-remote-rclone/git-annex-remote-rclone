@@ -1,5 +1,9 @@
 # git-annex rclone special remote
 
+__Users are urged to upgrade to version 0.4 or higher immediately.
+Some ways of using earlier versions could result in data loss. [more information here](https://github.com/DanielDent/git-annex-remote-rclone/issues/8)__
+
+
 [![build status](https://gitlab.com/DanielDent/git-annex-remote-rclone/badges/master/build.svg)](https://gitlab.com/DanielDent/git-annex-remote-rclone/commits/master)
 
 This wrapper around [rclone](http://rclone.org/) makes any destination supported by rclone usable with git-annex.
