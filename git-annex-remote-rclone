@@ -76,7 +76,9 @@ calclocation () {
 # Asks for some value, and stores it in RET
 ask () {
 	echo "$1" "$2"
-	read resp
+	read -r resp
+    # Strip trailing carriage return, if present
+    resp="${resp%$'\r'}"
 	if echo $resp|grep '^VALUE '>/dev/null; then
 	    RET=$(echo "$resp" | cut -f2- -d' ')
 	fi
@@ -86,7 +88,9 @@ ask () {
 # This has to come first, to get the protocol started.
 echo VERSION 1
 
-while read line; do
+while read -r line; do
+    # Strip trailing carriage return, if present
+    line="${line%$'\r'}"
 	set -- $line
 	case "$1" in
 		INITREMOTE)
@@ -156,6 +160,11 @@ while read line; do
 					# based on the key.
 					# XXX when at all possible, send PROGRESS
 					calclocation "$key"
+                    if [ ! -e "$file" ]; then
+                        echo "Asked to store nonexistent file $file" >&2
+                        echo "Command: $line" >&2
+                        echo TRANSFER-FAILURE STORE "$key"
+                    fi
 					if runcmd rclone copy "$file" "$LOC"; then
 						echo TRANSFER-SUCCESS STORE "$key"
 					else
