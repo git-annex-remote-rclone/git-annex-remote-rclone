@@ -160,16 +160,15 @@ while read -r line; do
 					# based on the key.
 					# XXX when at all possible, send PROGRESS
 					calclocation "$key"
-                    if [ ! -e "$file" ]; then
-                        echo "Asked to store nonexistent file $file" >&2
-                        echo "Command: $line" >&2
-                        echo TRANSFER-FAILURE STORE "$key"
-                    fi
-					if runcmd rclone copy "$file" "$LOC"; then
-						echo TRANSFER-SUCCESS STORE "$key"
-					else
-						echo TRANSFER-FAILURE STORE "$key"
-					fi
+					if [ ! -e "$file" ]; then
+						echo TRANSFER-FAILURE STORE "$key" "asked to store non-existent file $file"
+					else	
+						if runcmd rclone copy "$file" "$LOC"; then
+							echo TRANSFER-SUCCESS STORE "$key"
+						else
+							echo TRANSFER-FAILURE STORE "$key"
+						fi
+					fi					
 				;;
 				RETRIEVE)
 					# Retrieve from a location based on
