@@ -87,6 +87,8 @@ ask () {
 echo VERSION 1
 
 while read line; do
+    # Strip trailing whitespace; see http://stackoverflow.com/a/3352015
+    line="${line%"${line##*[![:space:]]}"}"
 	set -- $line
 	case "$1" in
 		INITREMOTE)
