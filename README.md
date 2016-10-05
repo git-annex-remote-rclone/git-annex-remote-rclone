@@ -50,7 +50,6 @@ The build badge above is linked to this CI process.
          * Known compatible remotes: [directory](http://git-annex.branchable.com/special_remotes/directory/), [rsync](http://git-annex.branchable.com/special_remotes/rsync/)
       * `nodir` - No directory hierarchy is used.
          * On systems which are designed to efficiently deal with many objects in a single "directory" or "path", this is the simplest and most efficient layout.
-         * Backblaze's B2 API [specifically mentions](https://www.backblaze.com/b2/docs/files.html) that folders don't exist within buckets, so nodir would be the recommended layout.
          * Known compatible remotes:  Thomas Jost's [Hubic](https://github.com/Schnouki/git-annex-remote-hubic) remote when a swift container other than `default` is used.
       * `mixed` - A two-level mixed case directory hierarchy is used (using git-annex's DIRHASH format).
          * This layout may cause problems when used on filesystems and cloud storage providers that are case-insensitive.
