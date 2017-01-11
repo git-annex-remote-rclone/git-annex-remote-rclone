@@ -28,9 +28,9 @@ Cloud storage providers supported by rclone currently include:
 
 ## Requirements
 
-The current version of git-annex-remote-rclone has been tested with rclone version 1.34. Because rclone sometimes changes its output, updates to this software may be required for compatibility.
+The current version of git-annex-remote-rclone has been tested with rclone versions up to 1.35. Because rclone sometimes changes its output, updates to this software may be required for compatibility.
 
-Version 1.34 of rclone also includes performance improvements and for that reason is now the minimum recommended version. 
+Version 1.34 of rclone includes performance improvements and for that reason is now the minimum recommended version. 
 
 To simplify maintenace, when I make updates to git-annex-remote-rclone, I test only against the current stable
 version of rclone. While I am not currently explicitly dropping support for older versions, I am also not
