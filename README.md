@@ -42,29 +42,46 @@ The build badge above is linked to this CI process.
 
 ## Usage
 
-   1. Configure an rclone remote: `rclone config`. Password-protected `rclone` configurations are not supported at this time (pull requests adding this feature are welcome).
-   2. Create a git-annex repository ([walkthrough](https://git-annex.branchable.com/walkthrough/))
-   3. Choose a repository layout. If you are having difficulty choosing, the `lower` layout is recommended. Supported layouts:
-      * `lower` - A two-level lower case directory hierarchy is used (using git-annex's DIRHASH-LOWER MD5-based format). This choice requires git-annex 6.20160511 or later.
-      * `directory` - A two-level lower case directory hierarchy is used, along with the key name as a 3rd level nested directory. This choice requires git-annex 6.20160511 or later.
-         * Some cloud providers require traversing a tree to request a file. The additional nested directory may cause a small performance loss for remote operations.
-         * Known compatible remotes: [directory](http://git-annex.branchable.com/special_remotes/directory/), [rsync](http://git-annex.branchable.com/special_remotes/rsync/)
-      * `nodir` - No directory hierarchy is used.
-         * On systems which are designed to efficiently deal with many objects in a single "directory" or "path", this is the simplest and most efficient layout.
-         * Known compatible remotes:  Thomas Jost's [Hubic](https://github.com/Schnouki/git-annex-remote-hubic) remote when a swift container other than `default` is used.
-      * `mixed` - A two-level mixed case directory hierarchy is used (using git-annex's DIRHASH format).
-         * This layout may cause problems when used on filesystems and cloud storage providers that are case-insensitive.
-         * Known compatible remotes: Thomas Jost's [Hubic](https://github.com/Schnouki/git-annex-remote-hubic) remote when the `default` swift container is chosen.
-      * `frankencase` - A two-level lower case directory hierarchy is used (using git-annex's DIRHASH format, with all characters translated to lower case)
-         * This layout should not be used except if you already have a legacy remote using this layout and do not wish to migrate.
-    	 * This was the only available layout in early versions of this remote, up to release v0.1.
-   4. Add a remote for the provider. This example:
-      * Adds a git-annex remote called `myacdremote`
-      * Stores your files in an rclone remote configured with the name `acd`
-      * Uses a `lower` repository layout
-      * Stores your files in a folder/prefix called `git-annex`:
+1. Configure rclone remote: `rclone config`. 
+2. If your `rclone` configuration is password-protected then export `RCLONE_CONFIG_PASS` environment variable in the shell where you will execute `git annex` command:
+   
+ ```
+ export RCLONE_CONFIG_PASS=your_password_here
+ ```
+ 
+    or prefix `git annex` command with the environment variable:
+ 
+ ```
+ RCLONE_CONFIG_PASS=your_password_here git annex ...
+ ```
+ 
+   Pull requests adding more more secure way of working with `rclone` configuration password are welcome.
+  
+3. Create a git-annex repository ([walkthrough](https://git-annex.branchable.com/walkthrough/))
+4. Choose a repository layout. If you are having difficulty choosing, the `lower` layout is recommended. Supported layouts:
+    * `lower` - A two-level lower case directory hierarchy is used (using git-annex's DIRHASH-LOWER MD5-based format). This choice requires git-annex 6.20160511 or later.
+    * `directory` - A two-level lower case directory hierarchy is used, along with the key name as a 3rd level nested directory. This choice requires git-annex 6.20160511 or later.
+       * Some cloud providers require traversing a tree to request a file. The additional nested directory may cause a small performance loss for remote operations.
+       * Known compatible remotes: [directory](http://git-annex.branchable.com/special_remotes/directory/), [rsync](http://git-annex.branchable.com/special_remotes/rsync/)
+    * `nodir` - No directory hierarchy is used.
+       * On systems which are designed to efficiently deal with many objects in a single "directory" or "path", this is the simplest and most efficient layout.
+       * Known compatible remotes:  Thomas Jost's [Hubic](https://github.com/Schnouki/git-annex-remote-hubic) remote when a swift container other than `default` is used.
+    * `mixed` - A two-level mixed case directory hierarchy is used (using git-annex's DIRHASH format).
+       * This layout may cause problems when used on filesystems and cloud storage providers that are case-insensitive.
+       * Known compatible remotes: Thomas Jost's [Hubic](https://github.com/Schnouki/git-annex-remote-hubic) remote when the `default` swift container is chosen.
+    * `frankencase` - A two-level lower case directory hierarchy is used (using git-annex's DIRHASH format, with all characters translated to lower case)
+       * This layout should not be used except if you already have a legacy remote using this layout and do not wish to migrate.
+       * This was the only available layout in early versions of this remote, up to release v0.1.
+5. Add a remote for the provider. This example:
 
-    `git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=50MiB encryption=shared mac=HMACSHA512 rclone_layout=lower`
+   * Adds a git-annex remote called `myacdremote`
+   * Stores your files in an rclone remote configured with the name `acd`
+   * Uses a `lower` repository layout
+   * Stores your files in a folder/prefix called `git-annex`:
+
+```
+git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=50MiB encryption=shared mac=HMACSHA512 rclone_layout=lower
+```
 
 The initremote command calls out to GPG and can hang if a machine has insufficient entropy. To debug issues, use the `--debug` flag, i.e. `git-annex initremote --debug`.
 
