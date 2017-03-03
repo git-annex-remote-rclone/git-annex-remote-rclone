@@ -43,7 +43,7 @@ The build badge above is linked to this CI process.
 ## Usage
 
 1. Configure rclone remote: `rclone config`. 
-2. If your `rclone` configuration is password-protected then export `RCLONE_CONFIG_PASS` environment variable in the shell where you will execute `git annex` command:
+2. If your `rclone` configuration is password-protected then export the `RCLONE_CONFIG_PASS` environment variable in the shell where you will execute `git annex` command:
    
  ```
  export RCLONE_CONFIG_PASS=your_password_here
@@ -55,7 +55,7 @@ The build badge above is linked to this CI process.
  RCLONE_CONFIG_PASS=your_password_here git annex ...
  ```
  
-   Pull requests adding more more secure way of working with `rclone` configuration password are welcome.
+   Pull requests proposing a more secure or easier to use approach to password-protected `rclone` configurations are welcome.
   
 3. Create a git-annex repository ([walkthrough](https://git-annex.branchable.com/walkthrough/))
 4. Choose a repository layout. If you are having difficulty choosing, the `lower` layout is recommended. Supported layouts:
