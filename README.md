@@ -25,6 +25,8 @@ Cloud storage providers supported by rclone currently include:
    1. [Install git-annex](https://git-annex.branchable.com/install/)
    2. [Install rclone](http://rclone.org/install/) into your $PATH, e.g. `/usr/local/bin`
    3. Copy `git-annex-remote-rclone` into your $PATH
+   4. Install ask - Adaptive Sampling Kit, a toolkit for sampling big experimental spaces
+
 
 ## Requirements
 
