@@ -175,7 +175,8 @@ while read -r line; do
 					# the key, outputting to the file.
 					# XXX when easy to do, send PROGRESS
 					calclocation "$key"
-					if GA_RC_TEMP_DIR=$(mktemp -d) &&
+					# http://stackoverflow.com/questions/31396985/why-is-mktemp-on-os-x-broken-with-a-command-that-worked-on-linux
+					if GA_RC_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX") &&
 					    runcmd rclone copy "$LOC$key" $GA_RC_TEMP_DIR &&
 					    mv $GA_RC_TEMP_DIR/$key $file &&
 					    rmdir $GA_RC_TEMP_DIR; then
