@@ -123,4 +123,4 @@ Please submit a pull request or create a new issue for problems or potential imp
 
 ## License
 
-Copyright 2016 [Daniel Dent](https://www.danieldent.com/). Licensed under the GPLv3.
+Copyright 2016-2017 [Daniel Dent](https://www.danieldent.com/). Licensed under the GPLv3.
