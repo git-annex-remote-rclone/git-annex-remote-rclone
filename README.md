@@ -14,7 +14,7 @@ Cloud storage providers supported by rclone currently include:
    * Openstack Swift / Rackspace cloud files / Memset Memstore
    * Dropbox
    * Google Cloud Storage
-   * Amazon Cloud Drive
+   * ~~Amazon Cloud Drive~~ ([issue #22](https://github.com/DanielDent/git-annex-remote-rclone/issues/22))
    * Microsoft One Drive
    * Hubic
    * Backblaze B2
