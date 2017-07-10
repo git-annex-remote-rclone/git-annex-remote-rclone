@@ -81,6 +81,8 @@ ask () {
     resp="${resp%$'\r'}"
 	if echo $resp|grep '^VALUE '>/dev/null; then
 	    RET=$(echo "$resp" | cut -f2- -d' ')
+    	else
+	    RET=""
 	fi
 }
 
