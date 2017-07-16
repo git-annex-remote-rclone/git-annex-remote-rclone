@@ -32,7 +32,7 @@ The current version of git-annex-remote-rclone has been tested with rclone versi
 
 Version 1.34 of rclone includes performance improvements and for that reason is now the minimum recommended version. 
 
-To simplify maintenace, when I make updates to git-annex-remote-rclone, I test only against the current stable
+To simplify maintenance, when I make updates to git-annex-remote-rclone, I test only against the current stable
 version of rclone. While I am not currently explicitly dropping support for older versions, I am also not
 performing additional integration tests with older rclone versions.
 
