@@ -1,6 +1,10 @@
 
 image: danieldent/debian-base
 
+# The script below purposefully does not specify rclone_layout.
+# This is to test that the script works correctly when an optional
+# parameter is not provided.
+
 test:
   script:
     - mv git-annex-remote-rclone /usr/local/bin
@@ -14,7 +18,7 @@ test:
     - cd testrepo
     - git init .
     - git-annex init
-    - git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=/tmp/GA-rclone-CI chunk=100MiB encryption=shared mac=HMACSHA512 rclone_layout=lower
+    - git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=/tmp/GA-rclone-CI chunk=100MiB encryption=shared mac=HMACSHA512
     - touch test
     - git-annex add test
     - git-annex copy test --to GA-rclone-CI
