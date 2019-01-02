@@ -199,14 +199,14 @@ while read -r line; do
 			# Some rclone backends support multiple
 			# files under one name.
 			if check_result=$(rclone size "$LOC$key" 2>&1) &&
-			    echo $check_result|grep -E 'Total objects: [1-9][0-9]* Total size' >&2 &&
-			    ! echo $check_result|grep 'Total size: 0 (0 bytes)' >&2; then
+			    echo $check_result|grep -E 'Total objects: [1-9][0-9]* Total size' >/dev/null &&
+			    ! echo $check_result|grep 'Total size: 0 (0 bytes)' >/dev/null; then
 				echo CHECKPRESENT-SUCCESS "$key"
 			else
 				# rclone 1.29 used 'Total objects: 0'
 				# rclone 1.30 uses 'directory not found'
-				if echo $check_result|grep 'Total objects: 0' >&2 || 
-				   echo $check_result|grep ' directory not found' >&2; then 
+				if echo $check_result|grep 'Total objects: 0' >/dev/null ||
+				   echo $check_result|grep ' directory not found' >/dev/null; then
 					echo CHECKPRESENT-FAILURE "$key"
 				else
 					# When the directory does not exist,
@@ -229,9 +229,9 @@ while read -r line; do
 	    		   	# rclone 1.29 used Failed to purge: Couldn't find directory:
 				# rclone 1.30 used no such file or directory
 				# rclone 1.33 uses directory not found
-		                if echo $remove_result | grep " Failed to purge: Couldn't find directory: " >&2 ||
-				   echo $remove_result | grep ' no such file or directory' ||
-				   echo $remove_result | grep ' directory not found' >&2
+		                if echo $remove_result | grep " Failed to purge: Couldn't find directory: " >/dev/null ||
+				   echo $remove_result | grep ' no such file or directory' >/dev/null ||
+				   echo $remove_result | grep ' directory not found' >/dev/null
 				then   
 					echo REMOVE-SUCCESS "$key"
 		                else
