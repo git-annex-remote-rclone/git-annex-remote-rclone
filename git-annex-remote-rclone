@@ -225,8 +225,9 @@ while read -r line; do
 				fi
 			else
                                 res="$?"
-                                if [[ "$res" == "3" ]]; then
-                                  # directory doesn't exist
+                                # see https://rclone.org/docs/#exit-code
+                                if [[ "$res" == "3" ]] || [[ "$res" == "4" ]]; then
+                                  # file or directory doesn't exist
                                   echo CHECKPRESENT-FAILURE "$key"
                                 else
                                   # some other error occured (e.g. a network error)
