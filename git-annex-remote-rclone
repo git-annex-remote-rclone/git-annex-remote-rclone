@@ -205,13 +205,12 @@ while read -r line; do
 				else
 					echo CHECKPRESENT-FAILURE "$key"
 				fi
-			else
-				# When the directory does not exist,
-				# the remote is not available.
-				# (A network remote would similarly
-				# fail with CHECKPRESENT-UNKNOWN
-				# if it couldn't be contacted).
-				echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
+			else  # Got an error, so the output is not JSON
+				if echo "$check_result" | grep 'directory not found' >/dev/null; then
+					echo CHECKPRESENT-FAILURE "$key"
+				else
+					echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
+				fi
 			fi
 		;;
 		REMOVE)
