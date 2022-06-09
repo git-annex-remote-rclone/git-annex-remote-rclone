@@ -29,7 +29,7 @@ git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local
 #  git-annex: .git/annex/tmp/SHA256E-s0--e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855: rename: does not exist (No such file or directory)
 #  failed
 # without even talking to the rclone remote!
-touch "test 0"
+# touch "test 0"
 
 echo 1 > "test 1"
 git-annex add *
