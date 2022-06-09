@@ -18,9 +18,7 @@ mkdir testrepo
 cd testrepo
 git init .
 git-annex init
-git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=$RCLONE_PREFIX chunk=100MiB encryption=none
-
-#shared mac=HMACSHA512
+git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=$RCLONE_PREFIX chunk=100MiB encryption=shared mac=HMACSHA512
 
 # Rudimentary test, spaces in the filename must be ok, 0 length files should be ok
 
