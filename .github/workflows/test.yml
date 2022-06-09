@@ -17,6 +17,15 @@ jobs:
           # TODO: use datalad-installer for git-annex and may be rclone
           #- windows-2019
           #- macos-latest
+        rclone:
+          - current
+          - v1.58.1  # current "current" -- the baseline
+          - v1.53.3  # Debian bullseye (current stable)
+          - v1.45    # Debian buster (current oldstable)
+          # older versions for which there is internal logic
+          - v1.33
+          - v1.30
+          - v1.29
 
     steps:
     - name: Set up environment
@@ -24,8 +33,11 @@ jobs:
    
     - name: Install dependencies
       run: |
+        set -x
         curl 'https://downloads.kitenet.net/git-annex/linux/current/git-annex-standalone-amd64.tar.gz'|tar -xz -C /usr/local/bin --strip-components 1
-        curl 'https://downloads.rclone.org/rclone-current-linux-amd64.zip' > rclone.zip
+        test ${{ matrix.rclone }} = current && prefurl="" || prefurl="${{ matrix.rclone }}/"
+        curlurl="https://downloads.rclone.org/${prefurl}rclone-${{ matrix.rclone }}-linux-amd64.zip"
+        curl "$curlurl" > rclone.zip
         unzip rclone.zip
         mv rclone-*-linux-amd64/rclone /usr/local/bin
 
