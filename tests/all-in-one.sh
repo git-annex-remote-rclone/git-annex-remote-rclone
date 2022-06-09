@@ -1,13 +1,19 @@
 #!/bin/bash
 
 cd "$(mktemp -d ${TMPDIR:-/tmp}/dl-XXXXXXX)"
+
 set -eux
 
+# provide versioning information to possibly ease troubleshooting
+git annex version
+rclone --version
 
 export HOME=$PWD
 echo -e '[local]\ntype = local\nnounc =' > ~/.rclone.conf
+# to pacify git/git-annex
 git config --global user.name Me
 git config --global user.email me@example.com
+git config --global init.defaultBranch master
 
 # Prepare rclone remote local store
 mkdir rclone-local
