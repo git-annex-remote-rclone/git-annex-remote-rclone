@@ -47,11 +47,11 @@ git-annex get *
 set +x
 for f in `seq 1 100`; do echo "load $f" | tee "test-$f.dat" >| "test $f.dat"; done
 set -x
-git annex add -J5 .
-git-annex copy -J5 . --to GA-rclone-CI
-git-annex drop -J5 .
-git-annex get -J5 .
-git-annex drop --from GA-rclone-CI -J5 .
+git annex add -J5 --quiet .
+git-annex copy -J5 --quiet . --to GA-rclone-CI
+git-annex drop -J5 --quiet .
+git-annex get -J5 --quiet .
+git-annex drop --from GA-rclone-CI -J5 --quiet .
 
 # annex testremote --fast
 git-annex testremote GA-rclone-CI --fast
