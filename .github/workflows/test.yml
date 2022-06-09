@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os:
           - ubuntu-18.04
@@ -25,7 +26,7 @@ jobs:
           # older versions for which there is internal logic
           - v1.33
           - v1.30
-          - v1.29
+          # - v1.29 TODO: seems to need rclone config run -- must be done in test script
 
     steps:
     - name: Set up environment
