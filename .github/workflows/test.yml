@@ -31,4 +31,4 @@ jobs:
 
     - name: ${{ matrix.module }} tests
       run: |
-        tests/all-in-one.sh
+        PATH=$PWD:$PATH tests/all-in-one.sh
