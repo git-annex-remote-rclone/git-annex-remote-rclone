@@ -1,0 +1,23 @@
+name: Shellcheck
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * *'
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Set up environment
+      uses: actions/checkout@v1
+   
+    - name: Install dependencies
+      run: |
+        sudo apt update && sudo apt install shellcheck
+
+    - name: shellcheck
+      run: |
+        shellcheck git-annex-remote-rclone

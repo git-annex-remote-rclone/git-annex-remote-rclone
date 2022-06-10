@@ -67,7 +67,7 @@ calclocation () {
 			;;
 		frankencase)
 			ask DIRHASH "$1"
-			lret=$(echo $RET|tr A-Z a-z)
+			lret=$(echo "$RET" | tr '[:upper:]' '[:lower:]')
 			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$lret"
 			;;
 	esac
@@ -79,7 +79,7 @@ ask () {
 	read -r resp
     # Strip trailing carriage return, if present
     resp="${resp%$'\r'}"
-	if echo $resp|grep '^VALUE '>/dev/null; then
+	if echo "$resp" | grep '^VALUE '>/dev/null; then
 	    RET=$(echo "$resp" | cut -f2- -d' ')
     	else
 	    RET=""
@@ -93,6 +93,7 @@ echo VERSION 1
 while read -r line; do
     # Strip trailing carriage return, if present
     line="${line%$'\r'}"
+	# shellcheck disable=SC2086
 	set -- $line
 	case "$1" in
 		INITREMOTE)
@@ -119,18 +120,18 @@ while read -r line; do
 
 			getconfig target
 			REMOTE_TARGET=$RET
-			setconfig target $REMOTE_TARGET
+			setconfig target "$REMOTE_TARGET"
 			
 			getconfig rclone_layout
 			RCLONE_LAYOUT=$RET
 			validate_layout
-			setconfig rclone_layout $RCLONE_LAYOUT
+			setconfig rclone_layout "$RCLONE_LAYOUT"
 
 			if [ -z "$REMOTE_TARGET" ]; then
 		                echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
 			fi
 
-            if runcmd rclone mkdir $REMOTE_TARGET:$REMOTE_PREFIX; then
+            if runcmd rclone mkdir "$REMOTE_TARGET:$REMOTE_PREFIX"; then
                 echo INITREMOTE-SUCCESS
             else
                 echo INITREMOTE-FAILURE "Failed to create directory on remote. Ensure that 'rclone config' has been run."
@@ -157,7 +158,7 @@ while read -r line; do
 			op="$2"
 			key="$3"
 			shift 3
-			file="$@"
+			file="$*"
 			case "$op" in
 				STORE)
 					# Store the file to a location
@@ -181,9 +182,9 @@ while read -r line; do
 					calclocation "$key"
 					# http://stackoverflow.com/questions/31396985/why-is-mktemp-on-os-x-broken-with-a-command-that-worked-on-linux
 					if GA_RC_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX") &&
-					    runcmd rclone copy "$LOC$key" $GA_RC_TEMP_DIR &&
-					    mv $GA_RC_TEMP_DIR/$key $file &&
-					    rmdir $GA_RC_TEMP_DIR; then
+					    runcmd rclone copy "$LOC$key" "$GA_RC_TEMP_DIR" &&
+					    mv "$GA_RC_TEMP_DIR/$key" "$file" &&
+					    rmdir "$GA_RC_TEMP_DIR"; then
 						echo TRANSFER-SUCCESS RETRIEVE "$key"
 					else
 						echo TRANSFER-FAILURE RETRIEVE "$key"
@@ -199,14 +200,14 @@ while read -r line; do
 			# Some rclone backends support multiple
 			# files under one name.
 			if check_result=$(rclone size "$LOC$key" 2>&1) &&
-			    echo $check_result|grep -E 'Total objects: [1-9][0-9]* Total size' >&2 &&
-			    ! echo $check_result|grep 'Total size: 0 (0 bytes)' >&2; then
+			    echo "$check_result"|grep -E 'Total objects: [1-9][0-9]*\>' >&2 &&
+			    ! echo "$check_result"|grep 'Total size: 0 (0 bytes)' >&2; then
 				echo CHECKPRESENT-SUCCESS "$key"
 			else
 				# rclone 1.29 used 'Total objects: 0'
 				# rclone 1.30 uses 'directory not found'
-				if echo $check_result|grep 'Total objects: 0' >&2 || 
-				   echo $check_result|grep ' directory not found' >&2; then 
+				if echo "$check_result"|grep 'Total objects: 0' >&2 || 
+				   echo "$check_result"|grep ' directory not found' >&2; then 
 					echo CHECKPRESENT-FAILURE "$key"
 				else
 					# When the directory does not exist,
@@ -229,9 +230,9 @@ while read -r line; do
 	    		   	# rclone 1.29 used Failed to purge: Couldn't find directory:
 				# rclone 1.30 used no such file or directory
 				# rclone 1.33 uses directory not found
-		                if echo $remove_result | grep " Failed to purge: Couldn't find directory: " >&2 ||
-				   echo $remove_result | grep ' no such file or directory' ||
-				   echo $remove_result | grep ' directory not found' >&2
+		                if echo "$remove_result" | grep " Failed to purge: Couldn't find directory: " >&2 ||
+				   echo "$remove_result" | grep ' no such file or directory' ||
+				   echo "$remove_result" | grep ' directory not found' >&2
 				then   
 					echo REMOVE-SUCCESS "$key"
 		                else
