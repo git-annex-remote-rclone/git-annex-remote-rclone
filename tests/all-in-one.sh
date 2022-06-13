@@ -43,6 +43,10 @@ git-annex copy * --to GA-rclone-CI
 git-annex drop *
 git-annex get *
 
+# Do a cycle with --debug to ensure that we are passing desired DEBUG output
+git-annex --debug drop test\ 1 2>&1 | grep -q 'grep.*exited with rc='
+git-annex --debug get test\ 1 2>/dev/null
+
 # test copy/drop/get cycle with parallel execution and good number of files and spaces in the names, and duplicated content/keys
 set +x
 for f in `seq 1 100`; do echo "load $f" | tee "test-$f.dat" >| "test $f.dat"; done
