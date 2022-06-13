@@ -110,6 +110,10 @@ interrupted or if some move operations do not complete successfully. When runnin
 At this time, this remote does NOT store your credentials in git-annex. Users are responsible for ensuring a
 ~/.rclone.conf file with valid credentials is available.
 
+## Troubleshooting
+
+Setting environment variable `GARR_DEBUG` to non-empty value would make `git-annex-remote-rclone` output results of `grep` operations to stderr which could help in troubleshooting.
+
 ## Warning
 
 Not all of the supported cloud storage providers have been tested. While in theory any provider that works with rclone

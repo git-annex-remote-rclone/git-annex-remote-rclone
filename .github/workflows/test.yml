@@ -31,7 +31,7 @@ jobs:
     steps:
     - name: Set up environment
       uses: actions/checkout@v1
-   
+
     - name: Install dependencies
       run: |
         set -x
@@ -45,3 +45,5 @@ jobs:
     - name: ${{ matrix.module }} tests
       run: |
         PATH=$PWD:$PATH tests/all-in-one.sh
+        # Should work with debug enabled as well
+        GARR_DEBUG=1 PATH=$PWD:$PATH tests/all-in-one.sh
