@@ -37,7 +37,7 @@ mkdir testrepo
 cd testrepo
 git init .
 git-annex init
-git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=$RCLONE_PREFIX chunk=100MiB encryption=shared mac=HMACSHA512
+git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=$RCLONE_PREFIX chunk=100MiB encryption=${GARR_TEST_ENCRYPTION:-shared} mac=HMACSHA512
 
 # Rudimentary test, spaces in the filename must be ok, 0 length files should be ok
 if verlte "10.20220525+git73" "$git_annex_version"; then
