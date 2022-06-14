@@ -58,7 +58,7 @@ git-annex --debug get test\ 1 2>/dev/null
 
 # test copy/drop/get cycle with parallel execution and good number of files and spaces in the names, and duplicated content/keys
 set +x
-for f in `seq 1 100`; do echo "load $f" | tee "test-$f.dat" >| "test $f.dat"; done
+for f in `seq 1 20`; do echo "load $f" | tee "test-$f.dat" >| "test $f.dat"; done
 set -x
 git annex add -J5 --quiet .
 git-annex copy -J5 --quiet . --to GA-rclone-CI
