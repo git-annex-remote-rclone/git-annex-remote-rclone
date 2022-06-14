@@ -97,8 +97,9 @@ GREP () {
 	# Replace explicit newline since we must provide 1 line DEBUG
 	# Fancy sed is from Example 5 of https://linuxhint.com/newline_replace_sed
 	# which worked on Linux and OSX.
+	# shellcheck disable=SC2016
 	out_safe=$(echo "$out" | sed -ne 'H;${x;s/\n/\\n/g;s/^,//;p;}')
-	echo "DEBUG 'grep \"$@\"' exited with rc=$rc and stdout=${out_safe}"
+	echo "DEBUG 'grep \"$*\"' exited with rc=$rc and stdout=${out_safe}"
 	exit $rc
 }
 
