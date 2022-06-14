@@ -2,6 +2,17 @@
 
 cd "$(mktemp -d ${TMPDIR:-/tmp}/dl-XXXXXXX)"
 
+# recipe from https://stackoverflow.com/a/4024263/1265472
+# sort -V seems to work on OSX yoh has access to.
+verlte() {
+    [  "$1" = "`echo -e "$1\n$2" | sort -V | head -n1`" ]
+}
+
+verlt() {
+    [ "$1" = "$2" ] && return 1 || verlte $1 $2
+}
+
+
 set -eux
 
 # provide versioning information to possibly ease troubleshooting
@@ -15,6 +26,8 @@ git config --global user.name Me
 git config --global user.email me@example.com
 git config --global init.defaultBranch master
 
+git_annex_version=$(git annex version | awk '/git-annex version:/{print $3;}')
+
 # Prepare rclone remote local store
 mkdir rclone-local
 export RCLONE_PREFIX=$PWD/rclone-local
@@ -27,15 +40,11 @@ git-annex init
 git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=$RCLONE_PREFIX chunk=100MiB encryption=shared mac=HMACSHA512
 
 # Rudimentary test, spaces in the filename must be ok, 0 length files should be ok
-
-# TODO: Working with 0-sized file fails for @yarikoptic!
-# doesn't work with git-annex 8.20211123-1 10.20220504-1
-# kabooms with
-#  (from GA-rclone-CI...)
-#  git-annex: .git/annex/tmp/SHA256E-s0--e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855: rename: does not exist (No such file or directory)
-#  failed
-# without even talking to the rclone remote!
-# touch "test 0"
+if verlte "10.20220525+git73" "$git_annex_version"; then
+	# Was fixed in 10.20220525-73-g13fc6a9b6
+	echo "I: Fixed git-annex $git_annex_version, adding empty file"
+	touch "test 0"
+fi
 
 echo 1 > "test 1"
 git-annex add *
