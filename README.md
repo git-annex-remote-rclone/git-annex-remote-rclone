@@ -124,4 +124,4 @@ Please submit a pull request or create a new issue for problems or potential imp
 
 ## License
 
-Copyright 2016-2022 [Daniel Dent](https://www.danieldent.com/), 2022 [Yaroslav O. Halchenko](https://centerforopenneuroscience.org/). Licensed under the GPLv3.
+Copyright 2016-2022 [Daniel Dent](https://www.danieldent.com/), 2022 [git-annex-remote-rclone contributors](https://github.com/DanielDent/git-annex-remote-rclone/graphs/contributors). Licensed under the GPLv3.
