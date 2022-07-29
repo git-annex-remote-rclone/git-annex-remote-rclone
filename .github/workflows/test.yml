@@ -26,6 +26,10 @@ jobs:
           - v1.33
           - v1.30
           # - v1.29 TODO: seems to need rclone config run -- must be done in test script
+      exclude:
+        # has some odd handling of HOME on OSX - does not use overloaded $HOME
+        - os: macos-latest
+          rclone: v1.45
 
     steps:
     - name: Set up environment
