@@ -15,9 +15,8 @@ jobs:
       matrix:
         os:
           - ubuntu-18.04
-          # TODO: use datalad-installer for git-annex and may be rclone
           #- windows-2019
-          #- macos-latest
+          - macos-latest
         rclone:
           - current
           - v1.58.1  # current "current" -- the baseline
@@ -27,20 +26,41 @@ jobs:
           - v1.33
           - v1.30
           # - v1.29 TODO: seems to need rclone config run -- must be done in test script
+        exclude:
+          # 1.30 - --version exits non-0
+          - os: macos-latest
+            rclone: v1.30
+          # 1.45 - has some odd handling of HOME on OSX - does not use overloaded $HOME
+          - os: macos-latest
+            rclone: v1.45
 
     steps:
     - name: Set up environment
       uses: actions/checkout@v1
-   
-    - name: Install dependencies
-      run: |
-        set -x
-        curl 'https://downloads.kitenet.net/git-annex/linux/current/git-annex-standalone-amd64.tar.gz'|tar -xz -C /usr/local/bin --strip-components 1
-        test ${{ matrix.rclone }} = current && prefurl="" || prefurl="${{ matrix.rclone }}/"
-        curlurl="https://downloads.rclone.org/${prefurl}rclone-${{ matrix.rclone }}-linux-amd64.zip"
-        curl "$curlurl" > rclone.zip
-        unzip rclone.zip
-        mv rclone-*-linux-amd64/rclone /usr/local/bin
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '>=3.7'
+
+    - name: Install datalad-installer
+      run: pip install datalad-installer
+
+    - name: Install git-annex (Ubuntu)
+      if: startsWith(matrix.os, 'ubuntu-')
+      run: datalad-installer --sudo ok git-annex -m datalad/git-annex:release
+
+    - name: Install git-annex (macOS)
+      if: startsWith(matrix.os, 'macos-')
+      run: datalad-installer git-annex -m brew
+
+    - name: Install latest rclone
+      if: matrix.rclone == 'current'
+      run: datalad-installer --sudo ok rclone -m downloads.rclone.org
+
+    - name: Install specific version of rclone
+      if: matrix.rclone != 'current'
+      run: datalad-installer --sudo ok rclone=${{ matrix.rclone }} -m downloads.rclone.org
 
     - name: ${{ matrix.module }} tests
       run: |
