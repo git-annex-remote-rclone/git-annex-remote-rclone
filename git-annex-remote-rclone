@@ -224,16 +224,15 @@ while read -r line; do
 					echo CHECKPRESENT-FAILURE "$key"
 				fi
 			else
-                                res="$?"
-                                # see https://rclone.org/docs/#exit-code
-                                if [[ "$res" == "3" ]] || [[ "$res" == "4" ]]; then
-                                  # file or directory doesn't exist
-                                  echo CHECKPRESENT-FAILURE "$key"
-                                else
-                                  # some other error occured (e.g. a network error)
-                                  echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
-                                fi
-
+				res="$?"
+				# see https://rclone.org/docs/#exit-code
+				if [[ "$res" == "3" ]] || [[ "$res" == "4" ]]; then
+					# file or directory doesn't exist
+					echo CHECKPRESENT-FAILURE "$key"
+				else
+					# some other error occured (e.g. a network error)
+					echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
+				fi
 			fi
 		;;
 		REMOVE)
