@@ -225,7 +225,10 @@ while read -r line; do
 				fi
 			else
 				res="$?"
-				# see https://rclone.org/docs/#exit-code
+				# res now contains the exit code of rclone (left-hand-side of && in if) or grep (right-hand-side of && in if)
+				# GNU grep manual says: the exit status is 0 if a line is selected, 1 if no lines were selected, and 2 if an error occurred.
+				# So for values above 2, res should be the exit code of rclone.
+				# See https://rclone.org/docs/#exit-code for rclone's exit codes.
 				if [[ "$res" == "3" ]] || [[ "$res" == "4" ]]; then
 					# file or directory doesn't exist
 					echo CHECKPRESENT-FAILURE "$key"
