@@ -212,30 +212,24 @@ while read -r line; do
 		CHECKPRESENT)
 			key="$2"
 			calclocation "$key"
-
-			# Any nonzero object count means present.
-			# Some rclone backends support multiple
-			# files under one name.
-			if check_result=$(rclone size --json "$LOC$key" 2>&1) &&
-			    echo "$check_result" | GREP '"count":'; then
-				if echo "$check_result" | GREP -E '"count":\s*[1-9][0-9]*'; then
-					echo CHECKPRESENT-SUCCESS "$key"
-				else
-					echo CHECKPRESENT-FAILURE "$key"
-				fi
+			
+			res=0
+			check_result=$(rclone size --json "$LOC$key") || res=$?
+			count=$(echo "$check_result" | sed -En 's/"count":\s*([0-9]+)/\1/ p')
+			if [[ $res -eq 0 && "$count" -ge 1 ]]; then
+				# Any nonzero object count means present.
+				# Some rclone backends support multiple
+				# files under one name.
+				echo CHECKPRESENT-SUCCESS "$key"
+			elif [[ $res -eq 0 && -n "$count" && "$count" -eq 0 ]]; then
+				# A 0 object count means an empty directory.
+				echo CHECKPRESENT-FAILURE "$key"
+			elif [[ $res -eq 3 || $res -eq 4 ]]; then
+				# file or directory doesn't exist
+				# see https://rclone.org/docs/#exit-code
+				echo CHECKPRESENT-FAILURE "$key"
 			else
-				res="$?"
-				# res now contains the exit code of rclone (left-hand-side of && in if) or grep (right-hand-side of && in if)
-				# GNU grep manual says: the exit status is 0 if a line is selected, 1 if no lines were selected, and 2 if an error occurred.
-				# So for values above 2, res should be the exit code of rclone.
-				# See https://rclone.org/docs/#exit-code for rclone's exit codes.
-				if [[ "$res" == "3" ]] || [[ "$res" == "4" ]]; then
-					# file or directory doesn't exist
-					echo CHECKPRESENT-FAILURE "$key"
-				else
-					# some other error occured (e.g. a network error)
-					echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
-				fi
+				echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
 			fi
 		;;
 		REMOVE)
