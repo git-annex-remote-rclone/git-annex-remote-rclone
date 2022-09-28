@@ -64,6 +64,6 @@ jobs:
 
     - name: ${{ matrix.module }} tests
       run: |
-        PATH=$PWD:$PATH tests/all-in-one.sh
+        PATH=$PWD:$PWD/tests:$PATH all-in-one.sh
         # Test without encryption so we do get 0-sized files in rclone remote store
-        PATH=$PWD:$PATH GARR_TEST_ENCRYPTION=none tests/all-in-one.sh
+        PATH=$PWD:$PWD/tests:$PATH GARR_TEST_ENCRYPTION=none all-in-one.sh
