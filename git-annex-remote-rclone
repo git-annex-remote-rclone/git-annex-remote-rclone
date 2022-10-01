@@ -215,7 +215,7 @@ while read -r line; do
 			
 			res=0
 			check_result=$(rclone size --json "$LOC$key") || res=$?
-			count=$(echo "$check_result" | sed -En 's/"count":\s*([0-9]+)/\1/ p')
+			count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
 			if [[ $res -eq 0 && "$count" -ge 1 ]]; then
 				# Any nonzero object count means present.
 				# Some rclone backends support multiple
