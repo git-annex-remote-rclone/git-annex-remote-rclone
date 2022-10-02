@@ -19,7 +19,8 @@ jobs:
           - macos-latest
         rclone:
           - current
-          - v1.58.1  # current "current" -- the baseline
+          - v1.59.2
+          - v1.58.1
           - v1.53.3  # Debian bullseye (current stable)
           - v1.45    # Debian buster (current oldstable)
         exclude:
