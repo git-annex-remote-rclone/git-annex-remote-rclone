@@ -247,12 +247,7 @@ while read -r line; do
 			if remove_result=$(rclone delete --retries 1 "$LOC$key" 2>&1); then
 				echo REMOVE-SUCCESS "$key"
 			else
-				# rclone 1.29 used Failed to purge: Couldn't find directory:
-				# rclone 1.30 used no such file or directory
-				# rclone 1.33 uses directory not found
-				if echo "$remove_result" | GREP " Failed to purge: Couldn't find directory: " ||
-					echo "$remove_result" | GREP ' no such file or directory' ||
-					echo "$remove_result" | GREP ' directory not found'
+				if echo "$remove_result" | GREP ' directory not found'
 				then
 					echo REMOVE-SUCCESS "$key"
 				else
