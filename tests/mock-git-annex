@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Helper for simulating of the git-annex external remote protocol.
 # Starts git-annex-remote-rclone and checks its behaviour against a script
@@ -17,6 +17,7 @@
 set -e
 
 me=$(basename -- "$0")
+cd "$(mktemp -d ${TMPDIR:-/tmp}/garr-XXXXXXX)"
 
 msg() {
 	local fmt="$1"
@@ -28,6 +29,7 @@ msg() {
 # coproc alternative for ancient bash on macos:
 mkfifo pipe-remote-in
 mkfifo pipe-remote-out
+trap "rm -f pipe-remote-in pipe-remote-out" EXIT
 git-annex-remote-rclone < pipe-remote-in > pipe-remote-out &
 COPROC_PID=$!
 exec 4> pipe-remote-in
@@ -37,7 +39,7 @@ COPROC=(3 4)
 read_real_line() {
 	line=DEBUG
 	while printf '%s\n' "$line" | grep '^DEBUG' >/dev/null; do
-		read -u ${COPROC[0]} -r line
+		read -u "${COPROC[0]}" -r line
 		msg 'Got %s\n' "$line"
 	done
 	printf '%s\n' "$line"
@@ -49,13 +51,13 @@ while read -r command; do
 	if printf '%s\n' "$command" | grep '^>' >/dev/null; then
 		to_send=${command#>$' '*}
 		msg 'Sending %s\n' "$to_send"
-		printf '%s\n' "$to_send" >&${COPROC[1]}
+		printf '%s\n' "$to_send" >&"${COPROC[1]}"
 	elif printf '%s\n' "$command" | grep '^<' >/dev/null; then
 		to_match=${command#<$' '*}
 		msg 'Reading a line...\n'
 		line=$(read_real_line)
 		msg 'Checking against %s' "$to_match"
-		if printf "%s\n" "$line" | egrep -- "$to_match" >/dev/null; then
+		if printf "%s\n" "$line" | grep -E -- "$to_match" >/dev/null; then
 			printf ' :)\n' >&2
 		else
 			printf ' :(\n' >&2

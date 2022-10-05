@@ -21,3 +21,4 @@ jobs:
     - name: shellcheck
       run: |
         shellcheck git-annex-remote-rclone
+        shellcheck tests/mock-git-annex
