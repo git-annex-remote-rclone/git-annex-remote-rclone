@@ -17,7 +17,7 @@
 set -e
 
 me=$(basename -- "$0")
-cd "$(mktemp -d ${TMPDIR:-/tmp}/garr-XXXXXXX)"
+cd "$(mktemp -d "${TMPDIR:-/tmp}/garr-XXXXXXX")"
 
 msg() {
 	local fmt="$1"
@@ -29,12 +29,18 @@ msg() {
 # coproc alternative for ancient bash on macos:
 mkfifo pipe-remote-in
 mkfifo pipe-remote-out
-trap "rm -f pipe-remote-in pipe-remote-out" EXIT
 git-annex-remote-rclone < pipe-remote-in > pipe-remote-out &
 COPROC_PID=$!
 exec 4> pipe-remote-in
 exec 3< pipe-remote-out
 COPROC=(3 4)
+coproc_cleanup() {
+	exec 3<&-
+	exec 4>&-
+	kill "$COPROC_PID"
+	rm -f pipe-remote-in pipe-remote-out
+}
+trap coproc_cleanup EXIT
 
 read_real_line() {
 	line=DEBUG
@@ -69,13 +75,4 @@ while read -r command; do
 	fi
 done
 
-exec 3<&- # fake coproc cleanup
-exec 4>&- # fake coproc cleanup
 msg 'Done.\n'
-set +e
-kill $COPROC_PID
-wait $COPROC_PID
-set -e
-rm pipe-remote-in  # fake coproc cleanup
-rm pipe-remote-out # fake coproc cleanup
-
