@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd "$(mktemp -d ${TMPDIR:-/tmp}/garr-XXXXXXX)"
+cd "$(mktemp -d "${TMPDIR:-/tmp}/garr-XXXXXXX")"
 
 # recipe from https://stackoverflow.com/a/4024263/1265472
 # sort -V seems to work on OSX yoh has access to.
