@@ -19,17 +19,11 @@ jobs:
           - macos-latest
         rclone:
           - current
-          - v1.58.1  # current "current" -- the baseline
+          - v1.59.2
+          - v1.58.1
           - v1.53.3  # Debian bullseye (current stable)
           - v1.45    # Debian buster (current oldstable)
-          # older versions for which there is internal logic
-          - v1.33
-          - v1.30
-          # - v1.29 TODO: seems to need rclone config run -- must be done in test script
         exclude:
-          # 1.30 - --version exits non-0
-          - os: macos-latest
-            rclone: v1.30
           # 1.45 - has some odd handling of HOME on OSX - does not use overloaded $HOME
           - os: macos-latest
             rclone: v1.45
@@ -64,6 +58,6 @@ jobs:
 
     - name: ${{ matrix.module }} tests
       run: |
-        PATH=$PWD:$PATH tests/all-in-one.sh
+        PATH=$PWD:$PWD/tests:$PATH all-in-one.sh
         # Test without encryption so we do get 0-sized files in rclone remote store
-        PATH=$PWD:$PATH GARR_TEST_ENCRYPTION=none tests/all-in-one.sh
+        PATH=$PWD:$PWD/tests:$PATH GARR_TEST_ENCRYPTION=none all-in-one.sh

@@ -90,18 +90,25 @@ ask () {
 	fi
 }
 
-GREP () {
-	set +e
-	out=$(grep "$@")
-	rc=$?
-	set -e
+printcmdresult() {
+	cmd="$1"
+	rc="$2"
+	out="$3"
 	# Replace explicit newline since we must provide 1 line DEBUG
 	# Fancy sed is from Example 5 of https://linuxhint.com/newline_replace_sed
 	# which worked on Linux and OSX.
 	# shellcheck disable=SC2016
 	out_safe=$(echo "$out" | sed -ne 'H;${x;s/\n/\\n/g;s/^,//;p;}')
-	echo "DEBUG 'grep \"$*\"' exited with rc=$rc and stdout=${out_safe}"
-	exit $rc
+	echo "DEBUG '$cmd' exited with rc=$rc and stdout=${out_safe}"
+}
+
+GREP () {
+	set +e
+	out=$(grep "$@")
+	rc=$?
+	set -e
+	printcmdresult "grep \"$*\"" "$rc" "$out"
+	return $rc
 }
 
 # This has to come first, to get the protocol started.
@@ -212,27 +219,25 @@ while read -r line; do
 		CHECKPRESENT)
 			key="$2"
 			calclocation "$key"
-
-			# Any nonzero object count means present.
-			# Some rclone backends support multiple
-			# files under one name.
-			if check_result=$(rclone size "$LOC$key" 2>&1) &&
-				echo "$check_result" | GREP -E 'Total objects: [1-9][0-9]*\>'; then
+			
+			res=0
+			check_result=$(rclone size --json "$LOC$key" 2>/dev/null) || res=$?
+			printcmdresult "rclone size --json \"$LOC$key\"" "$res" "$check_result"
+			count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
+			if [[ $res -eq 0 && "$count" -ge 1 ]]; then
+				# Any nonzero object count means present.
+				# Some rclone backends support multiple
+				# files under one name.
 				echo CHECKPRESENT-SUCCESS "$key"
+			elif [[ $res -eq 0 && -n "$count" && "$count" -eq 0 ]]; then
+				# A 0 object count means an empty directory.
+				echo CHECKPRESENT-FAILURE "$key"
+			elif [[ $res -eq 3 || $res -eq 4 ]]; then
+				# file or directory doesn't exist
+				# see https://rclone.org/docs/#exit-code
+				echo CHECKPRESENT-FAILURE "$key"
 			else
-				# rclone 1.29 used 'Total objects: 0'
-				# rclone 1.30 uses 'directory not found'
-				if echo "$check_result" | GREP 'Total objects: 0' ||
-				   echo "$check_result" | GREP ' directory not found'; then
-					echo CHECKPRESENT-FAILURE "$key"
-				else
-					# When the directory does not exist,
-					# the remote is not available.
-					# (A network remote would similarly
-					# fail with CHECKPRESENT-UNKNOWN
-					# if it couldn't be contacted).
-					echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
-				fi
+				echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
 			fi
 		;;
 		REMOVE)
@@ -243,13 +248,7 @@ while read -r line; do
 			if remove_result=$(rclone delete --retries 1 "$LOC$key" 2>&1); then
 				echo REMOVE-SUCCESS "$key"
 			else
-				# rclone 1.29 used Failed to purge: Couldn't find directory:
-				# rclone 1.30 used no such file or directory
-				# rclone 1.33 uses directory not found
-				if echo "$remove_result" | GREP " Failed to purge: Couldn't find directory: " ||
-					echo "$remove_result" | GREP ' no such file or directory' ||
-					echo "$remove_result" | GREP ' directory not found'
-				then
+				if echo "$remove_result" | GREP ' directory not found'; then
 					echo REMOVE-SUCCESS "$key"
 				else
 					echo REMOVE-FAILURE "$key"

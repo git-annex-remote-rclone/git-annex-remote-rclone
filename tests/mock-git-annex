@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Helper for simulating of the git-annex external remote protocol.
+# Starts git-annex-remote-rclone and checks its behaviour against a script
+# read from stdin. Each line of the script is either:
+#
+# > COMMAND ARG ARG
+#     A literal command to send to git-annex-remote-rclone.
+#
+# < REGEX
+#     A grep -E compatible regex to match against a line read from
+#     git-annex-remote-rclone. DEBUG lines are ignored.
+#     If the match fails, the simulator exits with exit code 1.
+#
+# Any other kind of line makes the simulator exit with exit code 2.
+
+set -e
+
+me=$(basename -- "$0")
+cd "$(mktemp -d "${TMPDIR:-/tmp}/garr-XXXXXXX")"
+
+msg() {
+	local fmt="$1"
+	shift
+	printf "%q: $fmt" "$me" "$@" >&2
+}
+
+# coproc git-annex-remote-rclone 2>/dev/null
+# coproc alternative for ancient bash on macos:
+mkfifo pipe-remote-in
+mkfifo pipe-remote-out
+git-annex-remote-rclone < pipe-remote-in > pipe-remote-out &
+COPROC_PID=$!
+exec 4> pipe-remote-in
+exec 3< pipe-remote-out
+COPROC=(3 4)
+coproc_cleanup() {
+	exec 3<&-
+	exec 4>&-
+	kill "$COPROC_PID"
+	rm -f pipe-remote-in pipe-remote-out
+}
+trap coproc_cleanup EXIT
+
+read_real_line() {
+	line=DEBUG
+	while printf '%s\n' "$line" | grep '^DEBUG' >/dev/null; do
+		read -u "${COPROC[0]}" -r line
+		msg 'Got %s\n' "$line"
+	done
+	printf '%s\n' "$line"
+}
+
+while read -r command; do
+	# Strip trailing carriage return, if present
+	command="${command%$'\r'}"
+	if printf '%s\n' "$command" | grep '^>' >/dev/null; then
+		to_send=${command#>$' '*}
+		msg 'Sending %s\n' "$to_send"
+		printf '%s\n' "$to_send" >&"${COPROC[1]}"
+	elif printf '%s\n' "$command" | grep '^<' >/dev/null; then
+		to_match=${command#<$' '*}
+		msg 'Reading a line...\n'
+		line=$(read_real_line)
+		msg 'Checking against %s' "$to_match"
+		if printf "%s\n" "$line" | grep -E -- "$to_match" >/dev/null; then
+			printf ' :)\n' >&2
+		else
+			printf ' :(\n' >&2
+			exit 1
+		fi
+	else
+		msg 'Wrong usage.\n'
+		exit 2
+	fi
+done
+
+msg 'Done.\n'

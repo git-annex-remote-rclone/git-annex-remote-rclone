@@ -52,9 +52,69 @@ git-annex copy * --to GA-rclone-CI
 git-annex drop *
 git-annex get *
 
+# Test REMOVE with mocked git-annex
+mkdir -p $RCLONE_PREFIX/abc/def
+echo test > $RCLONE_PREFIX/abc/def/test
+[[ -f $RCLONE_PREFIX/abc/def/test ]]
+mock-git-annex <<EOF
+< ^VERSION
+> PREPARE
+< ^GETCONFIG prefix$
+> VALUE $RCLONE_PREFIX
+< ^GETCONFIG target$
+> VALUE local
+< ^GETCONFIG rclone_layout$
+> VALUE lower
+< ^PREPARE-SUCCESS
+> REMOVE test
+< ^DIRHASH-LOWER test$
+> VALUE abc/def/
+< ^REMOVE-SUCCESS
+> REMOVE test
+< ^DIRHASH-LOWER test$
+> VALUE abc/def/
+< ^REMOVE-SUCCESS
+> REMOVE test2
+< ^DIRHASH-LOWER test2$
+> VALUE doe/sno/tex/ist/
+< ^REMOVE-SUCCESS
+EOF
+if [[ -f $RCLONE_PREFIX/abc/def/test ]]; then
+	echo "E: REMOVE failed to actually remove file"
+	exit 1
+fi
+
+# Test CHECKPRESENT with mocked git-annex
+mkdir -p $RCLONE_PREFIX/abc/def
+echo test > $RCLONE_PREFIX/abc/def/test
+mock-git-annex <<EOF
+< ^VERSION
+> PREPARE
+< ^GETCONFIG prefix$
+> VALUE $RCLONE_PREFIX
+< ^GETCONFIG target$
+> VALUE local
+< ^GETCONFIG rclone_layout$
+> VALUE lower
+< ^PREPARE-SUCCESS
+> CHECKPRESENT test
+< ^DIRHASH-LOWER test$
+> VALUE abc/def/
+< ^CHECKPRESENT-SUCCESS
+> CHECKPRESENT test-non-existing
+< ^DIRHASH-LOWER test-non-existing$
+> VALUE abc/def/
+< ^CHECKPRESENT-FAILURE
+> CHECKPRESENT test-non-existing-dir
+< ^DIRHASH-LOWER test-non-existing-dir$
+> VALUE dir/doe/sno/tex/ist/
+< ^CHECKPRESENT-FAILURE
+EOF
+
 # Do a cycle with --debug to ensure that we are passing desired DEBUG output
-git-annex --debug drop test\ 1 2>&1 | grep -q 'grep.*exited with rc='
+git-annex --debug drop test\ 1 2>&1 | grep -q 'rclone.*exited with rc='
 git-annex --debug get test\ 1 2>/dev/null
+git-annex --debug drop test\ 1 --from GA-rclone-CI 2>&1 | grep -q 'grep.*exited with rc='
 
 # test copy/drop/get cycle with parallel execution and good number of files and spaces in the names, and duplicated content/keys
 set +x
