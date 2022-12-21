@@ -120,11 +120,11 @@ git-annex --debug drop test\ 1 --from GA-rclone-CI 2>&1 | grep -q 'grep.*exited 
 set +x
 for f in `seq 1 20`; do echo "load $f" | tee "test-$f.dat" >| "test $f.dat"; done
 set -x
-git annex add -J5 --quiet .
-git-annex copy -J5 --quiet . --to GA-rclone-CI
-git-annex drop -J5 --quiet .
-git-annex get -J5 --quiet .
-git-annex drop --from GA-rclone-CI -J5 --quiet .
+git annex add -J5 --debug .
+git-annex copy -J5 --debug . --to GA-rclone-CI
+git-annex drop -J5 --debug .
+git-annex get -J5 --debug .
+git-annex drop --from GA-rclone-CI -J5 --debug .
 
 # annex testremote --fast
 git-annex testremote GA-rclone-CI --fast
