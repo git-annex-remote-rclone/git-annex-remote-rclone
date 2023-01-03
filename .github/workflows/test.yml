@@ -43,6 +43,8 @@ jobs:
     - name: Install git-annex (Ubuntu)
       if: startsWith(matrix.os, 'ubuntu-')
       run: datalad-installer --sudo ok git-annex -m datalad/git-annex:release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install git-annex (macOS)
       if: startsWith(matrix.os, 'macos-')
