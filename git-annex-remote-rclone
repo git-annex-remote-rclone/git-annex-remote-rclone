@@ -77,6 +77,10 @@ calclocation () {
 	esac
 }
 
+calcexportlocation() {
+	RET="$REMOTE_TARGET:$REMOTE_PREFIX/$1"
+}
+
 # Asks for some value, and stores it in RET
 ask () {
 	echo "$1" "$2"
@@ -203,6 +207,9 @@ while read -r line; do
 				echo INITREMOTE-FAILURE "Failed to create directory on remote. Ensure that 'rclone config' has been run."
 			fi
 		;;
+		EXPORTSUPPORTED)
+			echo EXPORTSUPPORTED-SUCCESS
+		;;
 		PREPARE)
 			# Use GETCONFIG to get configuration settings,
 			# and do anything needed to get ready for using the
@@ -219,6 +226,11 @@ while read -r line; do
 			validate_layout
 
 			echo PREPARE-SUCCESS
+		;;
+		EXPORT)
+			arg="${line:7}"
+			calcexportlocation "$arg"
+			EXPORT_LOC="$RET"
 		;;
 		TRANSFER)
 			op="$2"
@@ -258,17 +270,79 @@ while read -r line; do
 				;;
 			esac
 		;;
+		TRANSFEREXPORT)
+			op="$2"
+			key="$3"
+			file="$4"
+			case "$op" in
+				STORE)
+					# Store the file to a temporary location based on the key
+					# and then move it to the final destination, hopefully atomically
+					# XXX when at all possible, send PROGRESS
+					calcexportlocation ".tmp/$key"
+					tmploc="$RET"
+					if [ ! -e "$file" ]; then
+						echo TRANSFER-FAILURE STORE "$key" "asked to store non-existent file $file"
+					elif ! runcmd rclone copyto "$file" "$tmploc"; then
+						echo TRANSFER-FAILURE STORE "$key" "upload failed"
+					else
+						if ! runcmd rclone moveto "$tmploc" "$EXPORT_LOC"; then
+							runcmd rclone delete "$tmploc"
+							echo TRANSFER-FAILURE STORE "$key" "move to final destination failed"
+						else
+							echo TRANSFER-SUCCESS STORE "$key"
+						fi
+					fi
+				;;
+				RETRIEVE)
+					# Retrieve from the specified location
+					# outputting to the file.
+					# XXX when easy to do, send PROGRESS
+					# http://stackoverflow.com/questions/31396985/why-is-mktemp-on-os-x-broken-with-a-command-that-worked-on-linux
+					if GA_RC_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX") &&
+						runcmd rclone copyto "$EXPORT_LOC" "$GA_RC_TEMP_DIR/$key" &&
+						mv "$GA_RC_TEMP_DIR/$key" "$file" &&
+						rmdir "$GA_RC_TEMP_DIR"; then
+						echo TRANSFER-SUCCESS RETRIEVE "$key"
+					else
+						echo TRANSFER-FAILURE RETRIEVE "$key"
+					fi
+				;;
+			esac
+		;;
 		CHECKPRESENT)
 			key="$2"
 			calclocation "$key"
 
 			do_checkpresent "$key" "$LOC$key"
 		;;
+		CHECKPRESENTEXPORT)
+			key="$2"
+
+			do_checkpresent "$key" "$EXPORT_LOC"
+		;;
 		REMOVE)
 			key="$2"
 			calclocation "$key"
 
 			do_remove "$key" "$LOC$key"
+		;;
+		REMOVEEXPORT)
+			key="$2"
+
+			do_remove "$key" "$EXPORT_LOC"
+		;;
+		RENAMEEXPORT)
+			key="$2"
+			arg="$(echo "$line" |cut -d' ' -f3-)"
+			calcexportlocation "$arg"
+			newname="$RET"
+
+			if runcmd rclone moveto "$EXPORT_LOC" "$newname"; then
+				echo RENAMEEXPORT-SUCCESS "$key"
+			else
+				echo RENAMEEXPORT-FAILURE "$key"
+			fi
 		;;
 		*)
 			# The requests listed above are all the ones
