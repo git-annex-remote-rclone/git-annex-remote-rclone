@@ -111,6 +111,48 @@ GREP () {
 	return $rc
 }
 
+do_checkpresent() {
+	key="$1"
+	dest="$2"
+
+	res=0
+	check_result=$(rclone size --json "$dest" 2>/dev/null) || res=$?
+	printcmdresult "rclone size --json \"$dest\"" "$res" "$check_result"
+	count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
+	if [[ $res -eq 0 && "$count" -ge 1 ]]; then
+		# Any nonzero object count means present.
+		# Some rclone backends support multiple
+		# files under one name.
+		echo CHECKPRESENT-SUCCESS "$key"
+	elif [[ $res -eq 0 && -n "$count" && "$count" -eq 0 ]]; then
+		# A 0 object count means an empty directory.
+		echo CHECKPRESENT-FAILURE "$key"
+	elif [[ $res -eq 3 || $res -eq 4 ]]; then
+		# file or directory doesn't exist
+		# see https://rclone.org/docs/#exit-code
+		echo CHECKPRESENT-FAILURE "$key"
+	else
+		echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
+	fi
+}
+
+do_remove() {
+	key="$1"
+	dest="$2"
+
+	# Note that it's not a failure to remove a
+	# key that is not present.
+	if remove_result=$(rclone delete --retries 1 "$dest" 2>&1); then
+		echo REMOVE-SUCCESS "$key"
+	else
+		if echo "$remove_result" | GREP ' directory not found'; then
+			echo REMOVE-SUCCESS "$key"
+		else
+			echo REMOVE-FAILURE "$key"
+		fi
+	fi
+}
+
 # This has to come first, to get the protocol started.
 echo VERSION 1
 
@@ -219,41 +261,14 @@ while read -r line; do
 		CHECKPRESENT)
 			key="$2"
 			calclocation "$key"
-			
-			res=0
-			check_result=$(rclone size --json "$LOC$key" 2>/dev/null) || res=$?
-			printcmdresult "rclone size --json \"$LOC$key\"" "$res" "$check_result"
-			count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
-			if [[ $res -eq 0 && "$count" -ge 1 ]]; then
-				# Any nonzero object count means present.
-				# Some rclone backends support multiple
-				# files under one name.
-				echo CHECKPRESENT-SUCCESS "$key"
-			elif [[ $res -eq 0 && -n "$count" && "$count" -eq 0 ]]; then
-				# A 0 object count means an empty directory.
-				echo CHECKPRESENT-FAILURE "$key"
-			elif [[ $res -eq 3 || $res -eq 4 ]]; then
-				# file or directory doesn't exist
-				# see https://rclone.org/docs/#exit-code
-				echo CHECKPRESENT-FAILURE "$key"
-			else
-				echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
-			fi
+
+			do_checkpresent "$key" "$LOC$key"
 		;;
 		REMOVE)
 			key="$2"
 			calclocation "$key"
-			# Note that it's not a failure to remove a
-			# key that is not present.
-			if remove_result=$(rclone delete --retries 1 "$LOC$key" 2>&1); then
-				echo REMOVE-SUCCESS "$key"
-			else
-				if echo "$remove_result" | GREP ' directory not found'; then
-					echo REMOVE-SUCCESS "$key"
-				else
-					echo REMOVE-FAILURE "$key"
-				fi
-			fi
+
+			do_remove "$key" "$LOC$key"
 		;;
 		*)
 			# The requests listed above are all the ones
