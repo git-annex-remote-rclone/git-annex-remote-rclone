@@ -32,12 +32,17 @@ git_annex_version=$(git annex version | awk '/git-annex version:/{print $3;}')
 mkdir rclone-local
 export RCLONE_PREFIX=$PWD/rclone-local
 
+# Prepare rclone remote local store for tree export
+mkdir rclone-local-export
+export RCLONE_EXPORT_PREFIX=$PWD/rclone-local-export
+
 git-annex version
 mkdir testrepo
 cd testrepo
 git init .
 git-annex init
 git-annex initremote GA-rclone-CI type=external externaltype=rclone target=local prefix=$RCLONE_PREFIX chunk=100MiB encryption=${GARR_TEST_ENCRYPTION:-shared} mac=HMACSHA512
+git-annex initremote GA-rclone-export-CI type=external externaltype=rclone target=local prefix=$RCLONE_EXPORT_PREFIX encryption=none exporttree=yes
 
 # Rudimentary test, spaces in the filename must be ok, 0 length files should be ok
 if verlte "10.20220525+git73" "$git_annex_version"; then
@@ -48,9 +53,28 @@ fi
 
 echo 1 > "test 1"
 git-annex add *
+git commit -m "Initial commit"
+
 git-annex copy * --to GA-rclone-CI
 git-annex drop *
 git-annex get *
+git-annex drop * --from GA-rclone-CI
+
+git status
+
+git-annex export HEAD --to GA-rclone-export-CI
+# check if the exported file layout matches workdir, exclude .git and .tmp
+diff -ur -s --exclude=".*" . "$RCLONE_EXPORT_PREFIX"
+
+if git-annex drop *; then
+    echo "E: DROPPED files despite the only other copy being in an untrusted remote"
+    exit 1
+fi
+git-annex drop --force *
+git-annex get *
+
+# Prepare for later tests
+git-annex copy * --to GA-rclone-CI
 
 # Test REMOVE with mocked git-annex
 mkdir -p $RCLONE_PREFIX/abc/def
@@ -111,6 +135,61 @@ mock-git-annex <<EOF
 < ^CHECKPRESENT-FAILURE
 EOF
 
+# Test REMOVEEXPORT with mocked git-annex
+mkdir -p $RCLONE_EXPORT_PREFIX/abc/def
+echo test > $RCLONE_EXPORT_PREFIX/abc/def/test
+[[ -f $RCLONE_EXPORT_PREFIX/abc/def/test ]]
+mock-git-annex <<EOF
+< ^VERSION
+> PREPARE
+< ^GETCONFIG prefix$
+> VALUE $RCLONE_EXPORT_PREFIX
+< ^GETCONFIG target$
+> VALUE local
+< ^GETCONFIG rclone_layout$
+> VALUE lower
+< ^PREPARE-SUCCESS
+> EXPORT abc/def/test
+> REMOVEEXPORT test1234
+< ^REMOVE-SUCCESS
+> EXPORT abc/def/test
+> REMOVEEXPORT test1234
+< ^REMOVE-SUCCESS
+> EXPORT doe/sno/tex/ist/test2
+> REMOVEEXPORT test2345
+< ^REMOVE-SUCCESS
+EOF
+if [[ -f $RCLONE_EXPORT_PREFIX/abc/def/test ]]; then
+	echo "E: REMOVEEXPORT failed to actually remove file"
+	exit 1
+fi
+
+# Test CHECKPRESENTEXPORT with mocked git-annex
+mkdir -p $RCLONE_EXPORT_PREFIX/abc/def
+echo test > $RCLONE_EXPORT_PREFIX/abc/def/test
+mock-git-annex <<EOF
+< ^VERSION
+> PREPARE
+< ^GETCONFIG prefix$
+> VALUE $RCLONE_EXPORT_PREFIX
+< ^GETCONFIG target$
+> VALUE local
+< ^GETCONFIG rclone_layout$
+> VALUE lower
+< ^PREPARE-SUCCESS
+> EXPORT abc/def/test
+> CHECKPRESENTEXPORT test1234
+< ^CHECKPRESENT-SUCCESS
+> EXPORT abc/def/test-non-existing
+> CHECKPRESENTEXPORT test-non-existing2345
+< ^CHECKPRESENT-FAILURE
+> EXPORT doe/sno/tex/ist/test-non-existing-dir
+> CHECKPRESENTEXPORT test-non-existing-dir3456
+< ^CHECKPRESENT-FAILURE
+EOF
+
+rm -r $RCLONE_EXPORT_PREFIX/abc
+
 # Do a cycle with --debug to ensure that we are passing desired DEBUG output
 git-annex --debug drop test\ 1 2>&1 | grep -q 'rclone.*exited with rc='
 git-annex --debug get test\ 1 2>/dev/null
@@ -121,10 +200,18 @@ set +x
 for f in `seq 1 20`; do echo "load $f" | tee "test-$f.dat" >| "test $f.dat"; done
 set -x
 git annex add -J5 --quiet .
+git commit -m "add files"
+
 git-annex copy -J5 --quiet . --to GA-rclone-CI
 git-annex drop -J5 --quiet .
 git-annex get -J5 --quiet .
 git-annex drop --from GA-rclone-CI -J5 --quiet .
+
+git-annex export -J5 --quiet HEAD --to GA-rclone-export-CI
+# check if the exported file layout matches workdir, exclude .git and .tmp
+diff -ur -s --exclude=".*" . "$RCLONE_EXPORT_PREFIX"
+git-annex drop -J5 --quiet --force .
+git-annex get -J5 --quiet .
 
 # annex testremote --fast
 git-annex testremote GA-rclone-CI --fast
