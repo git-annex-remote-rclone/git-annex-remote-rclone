@@ -116,7 +116,7 @@ At this time, this remote does NOT store your credentials in git-annex. Users ar
 ## Warning
 
 Not all of the supported cloud storage providers have been tested. While in theory any provider that works with rclone
-should also work with this remote, it's possible there are unforseen integration issues - issues which might even
+should also work with this remote, it's possible there are unforeseen integration issues - issues which might even
 result in data loss.
 
 ## Issues, Contributing

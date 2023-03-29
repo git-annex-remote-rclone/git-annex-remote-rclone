@@ -1,0 +1,4 @@
+[codespell]
+skip = .git,*.pdf,*.svg
+# ist - part of odd path consisting of ex/ist
+ignore-words-list = ist
