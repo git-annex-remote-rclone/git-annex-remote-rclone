@@ -15,7 +15,7 @@ jobs:
       matrix:
         os:
           - ubuntu-18.04
-          #- windows-2019
+          - windows-latest
           - macos-latest
         rclone:
           - current
@@ -47,6 +47,18 @@ jobs:
     - name: Install git-annex (macOS)
       if: startsWith(matrix.os, 'macos-')
       run: datalad-installer git-annex -m brew
+
+    - name: Set up MSYS2 (Windows)
+      if: startsWith(matrix.os, 'windows-')
+      uses: actions/setup-msys2@v1
+      with:
+        msys2-root: C:\msys64
+
+    - name: Install git-annex (Windows)
+      if: startsWith(matrix.os, 'windows-')
+      run: |
+        pacman -Sy
+        pacman -S git-annex
 
     - name: Install latest rclone
       if: matrix.rclone == 'current'
