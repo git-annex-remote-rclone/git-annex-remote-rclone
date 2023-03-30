@@ -157,6 +157,14 @@ do_remove() {
 	fi
 }
 
+abort_annex_race_bug() {
+	url="https://git-annex.branchable.com/bugs/external_remote_export_sent_to_wrong_process/"
+	msg="DETECTED GIT-ANNEX BUG! ${*}! please update your git-annex to 10.20230329 or later, for details see: ${url}"
+	echo "ERROR $msg"
+	echo "$msg" >&2
+	exit 2
+}
+
 # This has to come first, to get the protocol started.
 echo VERSION 1
 
@@ -225,9 +233,16 @@ while read -r line; do
 			RCLONE_LAYOUT="$RET"
 			validate_layout
 
+			GOT_EXPORT=""
+
 			echo PREPARE-SUCCESS
 		;;
 		EXPORT)
+			if [ -n "$GOT_EXPORT" ]; then
+				abort_annex_race_bug "received two EXPORT requests in a row" || exit 2
+			fi
+			GOT_EXPORT="y"
+
 			arg="${line:7}"
 			calcexportlocation "$arg"
 			EXPORT_LOC="$RET"
@@ -271,6 +286,11 @@ while read -r line; do
 			esac
 		;;
 		TRANSFEREXPORT)
+			if [ -z "$GOT_EXPORT" ]; then
+				abort_annex_race_bug "received TRANSFEREXPORT without prior EXPORT" || exit 2
+			fi
+			GOT_EXPORT=""
+
 			op="$2"
 			key="$3"
 			file="$4"
@@ -319,6 +339,11 @@ while read -r line; do
 			do_checkpresent "$key" "$LOC$key"
 		;;
 		CHECKPRESENTEXPORT)
+			if [ -z "$GOT_EXPORT" ]; then
+				abort_annex_race_bug "received CHECKPRESENTEXPORT without prior EXPORT" || exit 2
+			fi
+			GOT_EXPORT=""
+
 			key="$2"
 
 			do_checkpresent "$key" "$EXPORT_LOC"
@@ -330,11 +355,21 @@ while read -r line; do
 			do_remove "$key" "$LOC$key"
 		;;
 		REMOVEEXPORT)
+			if [ -z "$GOT_EXPORT" ]; then
+				abort_annex_race_bug "received REMOVEEXPORT without prior EXPORT" || exit 2
+			fi
+			GOT_EXPORT=""
+
 			key="$2"
 
 			do_remove "$key" "$EXPORT_LOC"
 		;;
 		RENAMEEXPORT)
+			if [ -z "$GOT_EXPORT" ]; then
+				abort_annex_race_bug "received RENAMEEXPORT without prior EXPORT" || exit 2
+			fi
+			GOT_EXPORT=""
+
 			key="$2"
 			arg="$(echo "$line" |cut -d' ' -f3-)"
 			calcexportlocation "$arg"
