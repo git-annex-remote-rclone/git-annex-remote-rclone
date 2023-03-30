@@ -31,7 +31,7 @@ jobs:
             rclone: v1.45
         include:
           - os: ubuntu-18.04
-            annex: git-annex=8.20210310
+            annex: git-annex=8.20210330
 
     steps:
     - name: Set up environment
