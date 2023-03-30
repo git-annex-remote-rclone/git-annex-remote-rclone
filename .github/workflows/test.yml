@@ -23,10 +23,15 @@ jobs:
           - v1.58.1
           - v1.53.3  # Debian bullseye (current stable)
           - v1.45    # Debian buster (current oldstable)
+        annex:  # which annex (possible with version) to install on ubuntu
+          - git-annex
         exclude:
           # 1.45 - has some odd handling of HOME on OSX - does not use overloaded $HOME
           - os: macos-latest
             rclone: v1.45
+        include:
+          - os: ubuntu-18.04
+            annex: git-annex=8.20210310
 
     steps:
     - name: Set up environment
@@ -42,7 +47,7 @@ jobs:
 
     - name: Install git-annex (Ubuntu)
       if: startsWith(matrix.os, 'ubuntu-')
-      run: datalad-installer --sudo ok git-annex -m datalad/git-annex:release
+      run: datalad-installer --sudo ok ${{ matrix.annex }} -m datalad/git-annex:release
 
     - name: Install git-annex (macOS)
       if: startsWith(matrix.os, 'macos-')
