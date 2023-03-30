@@ -50,15 +50,12 @@ jobs:
 
     - name: Set up MSYS2 (Windows)
       if: startsWith(matrix.os, 'windows-')
-      uses: actions/setup-msys2@v1
+      uses: msys2/setup-msys2@v2
       with:
-        msys2-root: C:\msys64
-
-    - name: Install git-annex (Windows)
-      if: startsWith(matrix.os, 'windows-')
-      run: |
-        pacman -Sy
-        pacman -S git-annex
+        update: true
+        install: >-
+          bash
+          git-annex
 
     - name: Install latest rclone
       if: matrix.rclone == 'current'
