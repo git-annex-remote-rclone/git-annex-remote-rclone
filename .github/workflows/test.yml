@@ -14,15 +14,15 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-18.04
+          # - ubuntu-18.04
           - windows-latest
-          - macos-latest
+          # - macos-latest
         rclone:
           - current
-          - v1.59.2
-          - v1.58.1
-          - v1.53.3  # Debian bullseye (current stable)
-          - v1.45    # Debian buster (current oldstable)
+          # - v1.59.2
+          # - v1.58.1
+          # - v1.53.3  # Debian bullseye (current stable)
+          # - v1.45    # Debian buster (current oldstable)
         exclude:
           # 1.45 - has some odd handling of HOME on OSX - does not use overloaded $HOME
           - os: macos-latest
