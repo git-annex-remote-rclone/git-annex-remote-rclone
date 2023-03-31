@@ -65,6 +65,7 @@ jobs:
       run: datalad-installer --sudo ok rclone=${{ matrix.rclone }} -m downloads.rclone.org
 
     - name: ${{ matrix.module }} tests
+      shell: bash
       run: |
         PATH=${PWD}:${PWD}/tests:${PATH} all-in-one.sh
         # Test without encryption so we do get 0-sized files in rclone remote store
