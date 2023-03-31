@@ -58,7 +58,7 @@ jobs:
 
     - name: Install latest rclone
       if: matrix.rclone == 'current'
-      run: datalad-installer --sudo ok rclone -m downloads.rclone.org
+      run: datalad-installer --sudo ok rclone --bin-dir C:\rclone -m downloads.rclone.org
 
     - name: Install specific version of rclone
       if: matrix.rclone != 'current'
