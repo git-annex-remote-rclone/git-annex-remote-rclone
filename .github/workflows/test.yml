@@ -48,10 +48,6 @@ jobs:
       if: startsWith(matrix.os, 'macos-')
       run: datalad-installer git-annex -m brew
 
-    - name: Set up MSYS2 (Windows)
-      if: startsWith(matrix.os, 'windows-')
-      uses: msys2/setup-msys2@v2
-    
     - name: Install git-annex (Windows)
       if: startsWith(matrix.os, 'windows-')
       run: datalad-installer --sudo ok git-annex
