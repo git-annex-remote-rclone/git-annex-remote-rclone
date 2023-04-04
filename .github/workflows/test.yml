@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-18.04
+          - ubuntu-22.04
           #- windows-2019
           - macos-latest
         rclone:
@@ -30,7 +30,7 @@ jobs:
           - os: macos-latest
             rclone: v1.45
         include:
-          - os: ubuntu-18.04
+          - os: ubuntu-22.04
             annex: git-annex=8.20210330
             rclone: v1.45
 
