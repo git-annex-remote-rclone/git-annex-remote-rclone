@@ -1,7 +1,5 @@
-#!/bin/bash
-# emacs: -*- mode: python; tab-width: 4; indent-tabs-mode: t -*-
-# ex: set sts=4 ts=4 sw=4 noet:
-#
+#!/usr/bin/env python3
+
 # git-annex-remote-rclone - wrapper to enable use of rclone-supported cloud providers as git-annex special remotes.
 #
 # Install in PATH as git-annex-remote-rclone
@@ -16,268 +14,175 @@
 # warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 #
 # Based on work originally copyright 2013 Joey Hess which was licenced under the GNU GPL version 3 or higher.
-#
 
-set -e
+import os
+import re
+import sys
+import shutil
+import tempfile
+import subprocess
 
-# This program speaks a line-based protocol on stdin and stdout.
-# When running any commands, their stdout should be redirected to stderr
-# (or /dev/null) to avoid messing up the protocol.
-runcmd () {
-	"$@" >&2
-}
+def say(cmd, *messages):
+    print(cmd, *messages)
+    sys.stdout.flush()
 
-# Gets a value from the remote's configuration, and stores it in RET
-getconfig () {
-	ask GETCONFIG "$1"
-}
+def ask(cmd, *query):
+    say(cmd, *query)
+    resp_key, _, resp_value = sys.stdin.readline().partition(" ")
+    if resp_key == "VALUE":
+        return resp_value.rstrip()
+    if resp_key == "CREDS":
+        return resp_value.split(" ", 1).rstrip()
 
-# Stores a value in the remote's configuration.
-setconfig () {
-	echo SETCONFIG "$1" "$2"
-}
+def rclone(*args):
+    proc = subprocess.Popen(("rclone",) + args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    output = proc.stdout.read()
+    return proc.wait(), output.decode("utf8")
 
-validate_layout() {
-	if [ -z "$RCLONE_LAYOUT" ]; then
-		RCLONE_LAYOUT="lower"
-	fi
-	case "$RCLONE_LAYOUT" in
-		lower|directory|nodir|mixed|frankencase)
-			;;
-		*)
-			echo "INITREMOTE-FAILURE rclone_layout setting not recognized"
-			exit 1
-			;;
-	esac
-}
+def get_config(key):
+    return ask("GETCONFIG", key)
 
-# Sets LOC to the location to use to store a key.
-calclocation () {
-	case "$RCLONE_LAYOUT" in
-		lower)
-			ask DIRHASH-LOWER "$1"
-			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$RET"
-			;;
-		directory)
-			ask DIRHASH-LOWER "$1"
-			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$RET$1/"
-			;;
-		nodir)
-			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/"
-			;;
-		mixed)
-			ask DIRHASH "$1"
-			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$RET"
-			;;
-		frankencase)
-			ask DIRHASH "$1"
-			lret=$(echo "$RET" | tr '[:upper:]' '[:lower:]')
-			LOC="$REMOTE_TARGET:$REMOTE_PREFIX/$lret"
-			;;
-	esac
-}
+def set_config(key, value):
+    say("SETCONFIG", key, value)
 
-# Asks for some value, and stores it in RET
-ask () {
-	echo "$1" "$2"
-	read -r resp
-	# Strip trailing carriage return, if present
-	resp="${resp%$'\r'}"
-	if echo "$resp" | grep '^VALUE '>/dev/null; then
-		RET=$(echo "$resp" | cut -f2- -d' ')
-		else
-		RET=""
-	fi
-}
-
-printcmdresult() {
-	cmd="$1"
-	rc="$2"
-	out="$3"
-	# Replace explicit newline since we must provide 1 line DEBUG
-	# Fancy sed is from Example 5 of https://linuxhint.com/newline_replace_sed
-	# which worked on Linux and OSX.
-	# shellcheck disable=SC2016
-	out_safe=$(echo "$out" | sed -ne 'H;${x;s/\n/\\n/g;s/^,//;p;}')
-	echo "DEBUG '$cmd' exited with rc=$rc and stdout=${out_safe}"
-}
-
-GREP () {
-	set +e
-	out=$(grep "$@")
-	rc=$?
-	set -e
-	printcmdresult "grep \"$*\"" "$rc" "$out"
-	return $rc
-}
-
-do_checkpresent() {
-	key="$1"
-	dest="$2"
-
-	res=0
-	check_result=$(rclone size --json "$dest" 2>/dev/null) || res=$?
-	printcmdresult "rclone size --json \"$dest\"" "$res" "$check_result"
-	count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
-	if [[ $res -eq 0 && "$count" -ge 1 ]]; then
-		# Any nonzero object count means present.
-		# Some rclone backends support multiple
-		# files under one name.
-		echo CHECKPRESENT-SUCCESS "$key"
-	elif [[ $res -eq 0 && -n "$count" && "$count" -eq 0 ]]; then
-		# A 0 object count means an empty directory.
-		echo CHECKPRESENT-FAILURE "$key"
-	elif [[ $res -eq 3 || $res -eq 4 ]]; then
-		# file or directory doesn't exist
-		# see https://rclone.org/docs/#exit-code
-		echo CHECKPRESENT-FAILURE "$key"
-	else
-		echo CHECKPRESENT-UNKNOWN "$key" "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output"
-	fi
-}
-
-do_remove() {
-	key="$1"
-	dest="$2"
-
-	# Note that it's not a failure to remove a
-	# key that is not present.
-	if remove_result=$(rclone delete --retries 1 "$dest" 2>&1); then
-		echo REMOVE-SUCCESS "$key"
-	else
-		if echo "$remove_result" | GREP ' directory not found'; then
-			echo REMOVE-SUCCESS "$key"
-		else
-			echo REMOVE-FAILURE "$key"
-		fi
-	fi
-}
-
-# This has to come first, to get the protocol started.
-echo VERSION 1
-
-while read -r line; do
-	# Strip trailing carriage return, if present
-	line="${line%$'\r'}"
-	# shellcheck disable=SC2086
-	set -- $line
-	case "$1" in
-		INITREMOTE)
-			# Do anything necessary to create resources
-			# used by the remote. Try to be idempotent.
-			#
-			# Use GETCONFIG to get any needed configuration
-			# settings, and SETCONFIG to set any persistent
-			# configuration settings.
-			#
-			# (Note that this is not run every time, only when
-			# git annex initremote or git annex enableremote is
-			# run.)
-
-			getconfig prefix
-			REMOTE_PREFIX=$RET
-			if [ -z "$REMOTE_PREFIX" ]; then
-				REMOTE_PREFIX="git-annex"
-			fi
-			if [ "$REMOTE_PREFIX" == "/" ]; then
-				echo INITREMOTE-FAILURE "storing objects directly in the root (/) is not supported"
-			fi
-			setconfig prefix $REMOTE_PREFIX
-
-			getconfig target
-			REMOTE_TARGET=$RET
-			setconfig target "$REMOTE_TARGET"
-
-			getconfig rclone_layout
-			RCLONE_LAYOUT=$RET
-			validate_layout
-			setconfig rclone_layout "$RCLONE_LAYOUT"
-
-			if [ -z "$REMOTE_TARGET" ]; then
-				echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
-			fi
-
-			if runcmd rclone mkdir "$REMOTE_TARGET:$REMOTE_PREFIX"; then
-				echo INITREMOTE-SUCCESS
-			else
-				echo INITREMOTE-FAILURE "Failed to create directory on remote. Ensure that 'rclone config' has been run."
-			fi
-		;;
-		PREPARE)
-			# Use GETCONFIG to get configuration settings,
-			# and do anything needed to get ready for using the
-			# special remote here.
-
-			getconfig prefix
-			REMOTE_PREFIX="$RET"
-
-			getconfig target
-			REMOTE_TARGET="$RET"
-
-			getconfig rclone_layout
-			RCLONE_LAYOUT="$RET"
-			validate_layout
-
-			echo PREPARE-SUCCESS
-		;;
-		TRANSFER)
-			op="$2"
-			key="$3"
-			shift 3
-			file="$*"
-			case "$op" in
-				STORE)
-					# Store the file to a location
-					# based on the key.
-					# XXX when at all possible, send PROGRESS
-					calclocation "$key"
-					if [ ! -e "$file" ]; then
-						echo TRANSFER-FAILURE STORE "$key" "asked to store non-existent file $file"
-					else
-						if runcmd rclone copy "$file" "$LOC"; then
-							echo TRANSFER-SUCCESS STORE "$key"
-						else
-							echo TRANSFER-FAILURE STORE "$key"
-						fi
-					fi
-				;;
-				RETRIEVE)
-					# Retrieve from a location based on
-					# the key, outputting to the file.
-					# XXX when easy to do, send PROGRESS
-					calclocation "$key"
-					# http://stackoverflow.com/questions/31396985/why-is-mktemp-on-os-x-broken-with-a-command-that-worked-on-linux
-					if GA_RC_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX") &&
-						runcmd rclone copy "$LOC$key" "$GA_RC_TEMP_DIR" &&
-						mv "$GA_RC_TEMP_DIR/$key" "$file" &&
-						rmdir "$GA_RC_TEMP_DIR"; then
-						echo TRANSFER-SUCCESS RETRIEVE "$key"
-					else
-						echo TRANSFER-FAILURE RETRIEVE "$key"
-					fi
-				;;
-			esac
-		;;
-		CHECKPRESENT)
-			key="$2"
-			calclocation "$key"
-
-			do_checkpresent "$key" "$LOC$key"
-		;;
-		REMOVE)
-			key="$2"
-			calclocation "$key"
-
-			do_remove "$key" "$LOC$key"
-		;;
-		*)
-			# The requests listed above are all the ones
-			# that are required to be supported, so it's fine
-			# to say that any other request is unsupported.
-			echo UNSUPPORTED-REQUEST
-		;;
-	esac
-done
+def debug(*messages):
+    say("DEBUG", " ".join(map(str, messages)))
 
 
-# XXX anything that needs to be done at shutdown can be done here
+class Remote(object):
+
+    def initremote(self):
+        try:
+            self.remote_prefix = get_config("prefix")
+            if not self.remote_prefix:
+                self.remote_prefix = "git-annex"
+            if self.remote_prefix == "/":
+                raise RuntimeError("storing objects directly in the root (/) is not supported")
+            set_config("prefix", self.remote_prefix)
+
+            self.remote_target = get_config("target")
+            set_config("target", self.remote_target)
+
+            self.rclone_layout = get_config("rclone_layout") or "lower"
+            self._validate_layout()
+            set_config("rclone_layout", self.rclone_layout)
+
+            if not self.remote_target:
+                raise RuntimeError("rclone remote target must be specified (use target=parameter)")
+
+            if rclone("mkdir", f"{self.remote_target}:{self.remote_prefix}")[0]:
+                raise RuntimeError("Failed to create directory on remote. Ensure that 'rclone config' has been run.")
+
+        except RuntimeError as err:
+            say("INITREMOTE-FAILURE", err)
+        else:
+            say("INITREMOTE-SUCCESS")
+
+    def prepare(self):
+        self.remote_prefix = get_config("prefix")
+        self.remote_target = get_config("target")
+        self.rclone_layout = get_config("rclone_layout") or "lower"
+        try:
+            self._validate_layout()
+        except RuntimeError as err:
+            say("PREPARE-FAILURE", err)
+        else:
+            say("PREPARE-SUCCESS")
+
+    def transfer(self, op, key, *file):
+        file = " ".join(file)
+        location = self._calculate_location(key)
+
+        if op == "STORE":
+            # Store the file to a location
+            # based on the key.
+            # XXX when at all possible, send PROGRESS
+            if not os.path.exists(file):
+                say("TRANSFER-FAILURE", "STORE", key, f"asked to store non-existent file {file}")
+            else:
+                if not rclone("copy", file, location)[0]:
+                    say("TRANSFER-SUCCESS", "STORE", key)
+                else:
+                    say("TRANSFER-FAILURE", "STORE", key)
+
+        elif op == "RETRIEVE":
+            # Retrieve from a location based on
+            # the key, outputting to the file.
+            # XXX when easy to do, send PROGRESS
+            try:
+                with tempfile.TemporaryDirectory(prefix="rclone-annex-tmp.") as tmp:
+                    if rclone("copy", location + key, tmp)[0]:
+                        raise RuntimeError("Failed to copy")
+                    shutil.move(os.path.join(tmp, key), file)
+            except (OSError, IOError, RuntimeError):
+                say("TRANSFER-FAILURE", "RETRIEVE", key)
+            else:
+                say("TRANSFER-SUCCESS", "RETRIEVE", key)
+        else:
+            raise RuntimeError(f"Unknown operation {op}")
+
+    def checkpresent(self, key):
+        location = self._calculate_location(key)
+        code, output = rclone("size", "--json", location + key)
+        match_ = re.search(r'"count":\s*(\d+)', output)
+        count = match_ and int(match_.group(1))
+
+        if not code and count is not None and count >= 1:
+            # Any nonzero object count means present.
+            # Some rclone backends support multiple
+            # files under one name.
+            say("CHECKPRESENT-SUCCESS", key)
+        elif not code and count is not None and count == 0:
+            # A 0 object count means an empty directory.
+            say("CHECKPRESENT-FAILURE", key)
+        elif code in (3, 4):
+            # file or directory doesn't exist
+            # see https://rclone.org/docs/#exit-code
+            say("CHECKPRESENT-FAILURE", key)
+        else:
+            say("CHECKPRESENT-UNKNOWN", key, "remote currently unavailable or git-annex-remote-rclone failed to parse rclone output")
+
+    def remove(self, key):
+        # Note that it's not a failure to remove a
+        # key that is not present.
+        location = self._calculate_location(key)
+        code, output = rclone("delete", "--retries", "1", location + key)
+        if not code or " directory not found" in output:
+            say("REMOVE-SUCCESS", key)
+        else:
+            say("REMOVE-FAILURE", key)
+
+    def _validate_layout(self):
+        if self.rclone_layout not in ("lower", "directory", "nodir", "mixed", "frankencase"):
+            raise RuntimeError("rclone_layout setting not recognized")
+
+    def _calculate_location(self, key):
+        # Sets LOC to the location to use to store a key.
+        if self.rclone_layout == "lower":
+            dir_hash = ask("DIRHASH-LOWER", key)
+            return f"{self.remote_target}:{self.remote_prefix}/{dir_hash}"
+        if self.rclone_layout == "directory":
+            dir_hash = ask("DIRHASH-LOWER", key)
+            return f"{self.remote_target}:{self.remote_prefix}/{dir_hash}{key}/"
+        if self.rclone_layout == "nodir":
+            return f"{self.remote_target}:{self.remote_prefix}/"
+        if self.rclone_layout == "mixed":
+            dir_hash = ask("DIRHASH", key)
+            return f"{self.remote_target}:{self.remote_prefix}/{dir_hash}"
+        if self.rclone_layout == "frankencase":
+            dir_hash = ask("DIRHASH", key).lower()
+            return f"{self.remote_target}:{self.remote_prefix}/{dir_hash}"
+        raise RuntimeError(f"Unknown layout {self.rclone_layout}")
+
+
+def main():
+    say("VERSION", "1")
+    remote = Remote()
+    for line in iter(sys.stdin.readline, ""):
+        parts = line.rstrip().split()
+        func = getattr(remote, parts[0].lower(), None) or (lambda *_: say("UNSUPPORTED-REQUEST"))
+        func(*parts[1:])
+
+
+if __name__ == "__main__":
+    main()
