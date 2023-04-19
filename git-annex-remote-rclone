@@ -32,7 +32,7 @@ def ask(cmd, *query):
     if resp_key == "VALUE":
         return resp_value.rstrip()
     if resp_key == "CREDS":
-        return resp_value.split(" ", 1).rstrip()
+        return resp_value.rstrip().split(" ", 1)
 
 def rclone(*args):
     proc = subprocess.Popen(("rclone",) + args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
