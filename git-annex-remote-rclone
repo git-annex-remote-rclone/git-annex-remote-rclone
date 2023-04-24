@@ -21,7 +21,6 @@ import sys
 import shutil
 import tempfile
 import subprocess
-from typing import Tuple
 
 def say(cmd: str, *messages: str) -> None:
     print(cmd, *messages, flush=True)
@@ -33,10 +32,8 @@ def ask(cmd: str, *query: str) -> str:
         return resp_value.rstrip()
     raise RuntimeError(f"Unknown reponse: {resp_key}")
 
-def rclone(*args: str) -> Tuple[int, str]:
-    proc = subprocess.Popen(("rclone",) + args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-    output = proc.stdout.read()
-    return proc.wait(), output.decode("utf8")
+def rclone(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(("rclone", *args), stderr=subprocess.STDOUT, text=True)
 
 def get_config(key: str) -> str:
     return ask("GETCONFIG", key)
@@ -69,7 +66,7 @@ class Remote:
             if not self.remote_target:
                 raise RuntimeError("rclone remote target must be specified (use target=parameter)")
 
-            if rclone("mkdir", f"{self.remote_target}:{self.remote_prefix}")[0]:
+            if rclone("mkdir", f"{self.remote_target}:{self.remote_prefix}").returncode:
                 raise RuntimeError("Failed to create directory on remote. Ensure that 'rclone config' has been run.")
 
         except RuntimeError as err:
@@ -99,7 +96,7 @@ class Remote:
             if not os.path.exists(file):
                 say("TRANSFER-FAILURE", "STORE", key, f"asked to store non-existent file {file}")
             else:
-                if not rclone("copy", file, location)[0]:
+                if not rclone("copy", file, location).returncode:
                     say("TRANSFER-SUCCESS", "STORE", key)
                 else:
                     say("TRANSFER-FAILURE", "STORE", key)
@@ -110,7 +107,7 @@ class Remote:
             # XXX when easy to do, send PROGRESS
             try:
                 with tempfile.TemporaryDirectory(prefix="rclone-annex-tmp.") as tmp:
-                    if rclone("copy", location + key, tmp)[0]:
+                    if rclone("copy", location + key, tmp).returncode:
                         raise RuntimeError("Failed to copy")
                     shutil.move(os.path.join(tmp, key), file)
             except (OSError, IOError, RuntimeError):
@@ -122,19 +119,19 @@ class Remote:
 
     def checkpresent(self, key: str) -> None:
         location = self._calculate_location(key)
-        code, output = rclone("size", "--json", location + key)
-        match_ = re.search(r'"count":\s*(\d+)', output)
+        proc = rclone("size", "--json", location + key)
+        match_ = re.search(r'"count":\s*(\d+)', proc.stdout)
         count = match_ and int(match_.group(1))
 
-        if not code and count is not None and count >= 1:
+        if not proc.returncode and count is not None and count >= 1:
             # Any nonzero object count means present.
             # Some rclone backends support multiple
             # files under one name.
             say("CHECKPRESENT-SUCCESS", key)
-        elif not code and count is not None and count == 0:
+        elif not proc.returncode and count is not None and count == 0:
             # A 0 object count means an empty directory.
             say("CHECKPRESENT-FAILURE", key)
-        elif code in (3, 4):
+        elif proc.returncode in (3, 4):
             # file or directory doesn't exist
             # see https://rclone.org/docs/#exit-code
             say("CHECKPRESENT-FAILURE", key)
@@ -145,8 +142,8 @@ class Remote:
         # Note that it's not a failure to remove a
         # key that is not present.
         location = self._calculate_location(key)
-        code, output = rclone("delete", "--retries", "1", location + key)
-        if not code or " directory not found" in output:
+        proc = rclone("delete", "--retries", "1", location + key)
+        if not proc.returncode or " directory not found" in output:
             say("REMOVE-SUCCESS", key)
         else:
             say("REMOVE-FAILURE", key)
