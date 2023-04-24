@@ -22,6 +22,7 @@ import shutil
 import tempfile
 import subprocess
 
+
 def say(cmd: str, *messages: str) -> None:
     print(cmd, *messages, flush=True)
 
@@ -32,8 +33,14 @@ def ask(cmd: str, *query: str) -> str:
         return resp_value.rstrip()
     raise RuntimeError(f"Unknown reponse: {resp_key}")
 
-def rclone(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(("rclone", *args), stderr=subprocess.STDOUT, text=True)
+def rclone(*args: str, debug: bool=False) -> subprocess.CompletedProcess:
+    command = ("rclone", *args)
+    if debug:
+        say_debug("Executing:", *command)
+    proc = subprocess.run(command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, text=True)
+    if debug:
+        say_debug(f"Result: code={proc.returncode}, stdout={proc.stdout}")
+    return proc
 
 def get_config(key: str) -> str:
     return ask("GETCONFIG", key)
@@ -41,8 +48,9 @@ def get_config(key: str) -> str:
 def set_config(key: str, value: str) -> None:
     say("SETCONFIG", key, value)
 
-def debug(*messages: str) -> None:
-    say("DEBUG", " ".join(map(str, messages)))
+def say_debug(*messages: str) -> None:
+    safe_messages = map(lambda m: re.sub(r"\n", r"\\n", m), messages)
+    say("DEBUG", *safe_messages)
 
 
 class Remote:
@@ -119,7 +127,7 @@ class Remote:
 
     def checkpresent(self, key: str) -> None:
         location = self._calculate_location(key)
-        proc = rclone("size", "--json", location + key)
+        proc = rclone("size", "--json", location + key, debug=True)
         match_ = re.search(r'"count":\s*(\d+)', proc.stdout)
         count = match_ and int(match_.group(1))
 
@@ -143,7 +151,7 @@ class Remote:
         # key that is not present.
         location = self._calculate_location(key)
         proc = rclone("delete", "--retries", "1", location + key)
-        if not proc.returncode or " directory not found" in output:
+        if not proc.returncode or " directory not found" in proc.stdout:
             say("REMOVE-SUCCESS", key)
         else:
             say("REMOVE-FAILURE", key)
