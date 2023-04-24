@@ -48,7 +48,7 @@ def debug(*messages: str) -> None:
     say("DEBUG", " ".join(map(str, messages)))
 
 
-class Remote(object):
+class Remote:
 
     def initremote(self) -> None:
         try:
