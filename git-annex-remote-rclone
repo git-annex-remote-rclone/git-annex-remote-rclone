@@ -116,8 +116,8 @@ do_checkpresent() {
 	dest="$2"
 
 	res=0
-	check_result=$(rclone size --json "$dest" 2>/dev/null) || res=$?
-	printcmdresult "rclone size --json \"$dest\"" "$res" "$check_result"
+	check_result=$(rclone size ${RCLONE_FLAGS:+$RCLONE_FLAGS} --json "$dest" 2>/dev/null) || res=$?
+	printcmdresult "rclone size ${RCLONE_FLAGS:+$RCLONE_FLAGS} --json \"$dest\"" "$res" "$check_result"
 	count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
 	if [[ $res -eq 0 && "$count" -ge 1 ]]; then
 		# Any nonzero object count means present.
@@ -142,7 +142,7 @@ do_remove() {
 
 	# Note that it's not a failure to remove a
 	# key that is not present.
-	if remove_result=$(rclone delete --retries 1 "$dest" 2>&1); then
+	if remove_result=$(rclone delete ${RCLONE_FLAGS:+$RCLONE_FLAGS} --retries 1 "$dest" 2>&1); then
 		echo REMOVE-SUCCESS "$key"
 	else
 		if echo "$remove_result" | GREP ' directory not found'; then
@@ -193,11 +193,17 @@ while read -r line; do
 			validate_layout
 			setconfig rclone_layout "$RCLONE_LAYOUT"
 
+			getconfig rclone_flags
+			RCLONE_FLAGS=$RET
+			if [ -n "$RCLONE_FLAGS" ]; then
+				setconfig rclone_flags "$RCLONE_FLAGS"
+			fi
+
 			if [ -z "$REMOTE_TARGET" ]; then
 				echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
 			fi
 
-			if runcmd rclone mkdir "$REMOTE_TARGET:$REMOTE_PREFIX"; then
+			if runcmd rclone mkdir "$REMOTE_TARGET:$REMOTE_PREFIX" ${RCLONE_FLAGS:+$RCLONE_FLAGS}; then
 				echo INITREMOTE-SUCCESS
 			else
 				echo INITREMOTE-FAILURE "Failed to create directory on remote. Ensure that 'rclone config' has been run."
@@ -218,6 +224,12 @@ while read -r line; do
 			RCLONE_LAYOUT="$RET"
 			validate_layout
 
+			getconfig rclone_flags
+			RCLONE_FLAGS=$RET
+			if [ -n "$RCLONE_FLAGS" ]; then
+				setconfig rclone_flags "$RCLONE_FLAGS"
+			fi
+
 			echo PREPARE-SUCCESS
 		;;
 		TRANSFER)
@@ -234,7 +246,7 @@ while read -r line; do
 					if [ ! -e "$file" ]; then
 						echo TRANSFER-FAILURE STORE "$key" "asked to store non-existent file $file"
 					else
-						if runcmd rclone copy "$file" "$LOC"; then
+						if runcmd rclone copy ${RCLONE_FLAGS:+$RCLONE_FLAGS} "$file" "$LOC"; then
 							echo TRANSFER-SUCCESS STORE "$key"
 						else
 							echo TRANSFER-FAILURE STORE "$key"
@@ -248,7 +260,7 @@ while read -r line; do
 					calclocation "$key"
 					# http://stackoverflow.com/questions/31396985/why-is-mktemp-on-os-x-broken-with-a-command-that-worked-on-linux
 					if GA_RC_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX") &&
-						runcmd rclone copy "$LOC$key" "$GA_RC_TEMP_DIR" &&
+						runcmd rclone copy ${RCLONE_FLAGS:+$RCLONE_FLAGS} "$LOC$key" "$GA_RC_TEMP_DIR" &&
 						mv "$GA_RC_TEMP_DIR/$key" "$file" &&
 						rmdir "$GA_RC_TEMP_DIR"; then
 						echo TRANSFER-SUCCESS RETRIEVE "$key"
