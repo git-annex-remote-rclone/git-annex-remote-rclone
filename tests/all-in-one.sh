@@ -65,6 +65,8 @@ mock-git-annex <<EOF
 > VALUE local
 < ^GETCONFIG rclone_layout$
 > VALUE lower
+< ^GETCONFIG rclone_flags$
+> --no-traverse
 < ^PREPARE-SUCCESS
 > REMOVE test
 < ^DIRHASH-LOWER test$
@@ -96,6 +98,8 @@ mock-git-annex <<EOF
 > VALUE local
 < ^GETCONFIG rclone_layout$
 > VALUE lower
+< ^GETCONFIG rclone_flags$
+> --no-traverse
 < ^PREPARE-SUCCESS
 > CHECKPRESENT test
 < ^DIRHASH-LOWER test$
