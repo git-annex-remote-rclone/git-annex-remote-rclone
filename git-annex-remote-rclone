@@ -111,6 +111,13 @@ GREP () {
 	return $rc
 }
 
+# Helper function to extract an integer value from a JSON string using sed
+get_json_int() {
+	json_string="$1"
+	key="$2"
+	echo "$json_string" | sed -En "s/^.*\"$key\":\s*([0-9]+).*$/\1/p"
+}
+
 do_checkpresent() {
 	key="$1"
 	dest="$2"
@@ -118,7 +125,7 @@ do_checkpresent() {
 	res=0
 	check_result=$(rclone size --json "$dest" 2>/dev/null) || res=$?
 	printcmdresult "rclone size --json \"$dest\"" "$res" "$check_result"
-	count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
+	count=$(get_json_int "$check_result" count)
 	if [[ $res -eq 0 && "$count" -ge 1 ]]; then
 		# Any nonzero object count means present.
 		# Some rclone backends support multiple
