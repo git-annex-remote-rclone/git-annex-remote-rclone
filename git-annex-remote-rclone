@@ -111,6 +111,46 @@ GREP () {
 	return $rc
 }
 
+# Helper function to extract an integer value from a JSON string using sed
+get_json_int() {
+	json_string="$1"
+	key="$2"
+	echo "$json_string" | sed -En "s/^.*\"$key\":\s*([0-9]+).*$/\1/p"
+}
+
+# Function to monitor rclone progress and report back to git-annex
+rclone_progress() {
+	# Create a temporary file for the log
+	log_file=$(mktemp "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX")
+
+	# Run rclone with the specified options and log to the temporary file
+	rclone "$@" --use-json-log --stats-log-level NOTICE --stats 1s --log-file "$log_file" &
+	rclone_pid=$!
+
+	# Monitor the log file for changes and extract the "bytes" field
+	tail -fn0 "$log_file" | while IFS= read -r line; do
+		bytes=$(get_json_int "$line" "bytes")
+		if [[ -n $bytes ]]; then
+			echo "PROGRESS $bytes"
+		fi
+
+		# Check if rclone process is still running
+		if ! ps -p $rclone_pid > /dev/null; then
+			break
+		fi
+	done
+
+	# Wait for rclone to finish and capture its exit code
+	wait $rclone_pid
+	exit_code=$?
+
+	# Clean up the log file
+	[ -e "$log_file" ] && rm "$log_file"
+
+	# Return the exit code of the rclone command
+	return $exit_code
+}
+
 do_checkpresent() {
 	key="$1"
 	dest="$2"
@@ -118,7 +158,7 @@ do_checkpresent() {
 	res=0
 	check_result=$(rclone size --json "$dest" 2>/dev/null) || res=$?
 	printcmdresult "rclone size --json \"$dest\"" "$res" "$check_result"
-	count=$(echo "$check_result" | sed -En 's/^.*"count":\s*([0-9]+).*$/\1/ p')
+	count=$(get_json_int "$check_result" count)
 	if [[ $res -eq 0 && "$count" -ge 1 ]]; then
 		# Any nonzero object count means present.
 		# Some rclone backends support multiple
@@ -234,7 +274,7 @@ while read -r line; do
 					if [ ! -e "$file" ]; then
 						echo TRANSFER-FAILURE STORE "$key" "asked to store non-existent file $file"
 					else
-						if runcmd rclone copy "$file" "$LOC"; then
+						if rclone_progress copy "$file" "$LOC"; then
 							echo TRANSFER-SUCCESS STORE "$key"
 						else
 							echo TRANSFER-FAILURE STORE "$key"
@@ -248,7 +288,7 @@ while read -r line; do
 					calclocation "$key"
 					# http://stackoverflow.com/questions/31396985/why-is-mktemp-on-os-x-broken-with-a-command-that-worked-on-linux
 					if GA_RC_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX") &&
-						runcmd rclone copy "$LOC$key" "$GA_RC_TEMP_DIR" &&
+						rclone_progress copy "$LOC$key" "$GA_RC_TEMP_DIR" &&
 						mv "$GA_RC_TEMP_DIR/$key" "$file" &&
 						rmdir "$GA_RC_TEMP_DIR"; then
 						echo TRANSFER-SUCCESS RETRIEVE "$key"
