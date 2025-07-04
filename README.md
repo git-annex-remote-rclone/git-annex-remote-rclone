@@ -57,7 +57,11 @@ The build badge above is linked to this CI process.
  ```
  RCLONE_CONFIG_PASS=your_password_here git annex ...
  ```
- 
+
+or
+
+`rclone_passcmd` can be used to pass command to fetch passwrod
+
    Pull requests proposing a more secure or easier to use approach to password-protected `rclone` configurations are welcome.
   
 3. Create a git-annex repository ([walkthrough](https://git-annex.branchable.com/walkthrough/))
@@ -85,6 +89,21 @@ The build badge above is linked to this CI process.
 ```
 git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=50MiB encryption=shared mac=HMACSHA512 rclone_layout=lower
 ```
+
+else with rclone_passcmd pass password command which internally use rclone `--password-command` option
+
+
+```
+git annex initremote myacdremote type=external externaltype=rclone target=acd prefix=git-annex chunk=50MiB encryption=shared mac=HMACSHA512 rclone_layout=lower \
+    rclone_passcmd="secret-tool lookup rclone gcrypt"
+```
+
+or when enabling an existing remote:
+
+```
+git annex initremote myacdremote rclone_passcmd="secret-tool lookup rclone gcrypt"
+```
+
 
 The initremote command calls out to GPG and can hang if a machine has insufficient entropy. To debug issues, use the `--debug` flag, i.e. `git-annex initremote --debug`.
 
