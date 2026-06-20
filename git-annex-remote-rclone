@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # emacs: -*- mode: python; tab-width: 4; indent-tabs-mode: t -*-
 # ex: set sts=4 ts=4 sw=4 noet:
 #
@@ -25,6 +25,10 @@ set -e
 # (or /dev/null) to avoid messing up the protocol.
 runcmd () {
 	"$@" >&2
+}
+
+run_rclone_cmd () {
+	rclone ${RCLONE_PASSCMD:+--password-command "${RCLONE_PASSCMD}"} "$@"
 }
 
 # Gets a value from the remote's configuration, and stores it in RET
@@ -124,7 +128,7 @@ rclone_progress() {
 	log_file=$(mktemp "${TMPDIR:-/tmp}/rclone-annex-tmp.XXXXXXXXX")
 
 	# Run rclone with the specified options and log to the temporary file
-	rclone "$@" --use-json-log --stats-log-level NOTICE --stats 1s --log-file "$log_file" &
+	run_rclone_cmd "$@" --use-json-log --stats-log-level NOTICE --stats 1s --log-file "$log_file" &
 	rclone_pid=$!
 
 	# Monitor the log file for changes and extract the "bytes" field
@@ -156,8 +160,8 @@ do_checkpresent() {
 	dest="$2"
 
 	res=0
-	check_result=$(rclone size --json "$dest" 2>/dev/null) || res=$?
-	printcmdresult "rclone size --json \"$dest\"" "$res" "$check_result"
+	check_result=$(run_rclone_cmd size --json "$dest" 2>/dev/null) || res=$?
+	printcmdresult "run_rclone_cmd size --json \"$dest\"" "$res" "$check_result"
 	count=$(get_json_int "$check_result" count)
 	if [[ $res -eq 0 && "$count" -ge 1 ]]; then
 		# Any nonzero object count means present.
@@ -182,7 +186,7 @@ do_remove() {
 
 	# Note that it's not a failure to remove a
 	# key that is not present.
-	if remove_result=$(rclone delete --retries 1 "$dest" 2>&1); then
+	if remove_result=$(run_rclone_cmd delete --retries 1 "$dest" 2>&1); then
 		echo REMOVE-SUCCESS "$key"
 	else
 		if echo "$remove_result" | GREP ' directory not found'; then
@@ -233,11 +237,15 @@ while read -r line; do
 			validate_layout
 			setconfig rclone_layout "$RCLONE_LAYOUT"
 
+			getconfig rclone_passcmd
+			RCLONE_PASSCMD="$RET"
+			setconfig rclone_passcmd "$RCLONE_PASSCMD"
+
 			if [ -z "$REMOTE_TARGET" ]; then
 				echo INITREMOTE-FAILURE "rclone remote target must be specified (use target= parameter)"
 			fi
 
-			if runcmd rclone mkdir "$REMOTE_TARGET:$REMOTE_PREFIX"; then
+			if runcmd run_rclone_cmd mkdir "$REMOTE_TARGET:$REMOTE_PREFIX"; then
 				echo INITREMOTE-SUCCESS
 			else
 				echo INITREMOTE-FAILURE "Failed to create directory on remote. Ensure that 'rclone config' has been run."
@@ -257,6 +265,9 @@ while read -r line; do
 			getconfig rclone_layout
 			RCLONE_LAYOUT="$RET"
 			validate_layout
+
+			getconfig rclone_passcmd
+			RCLONE_PASSCMD="$RET"
 
 			echo PREPARE-SUCCESS
 		;;
